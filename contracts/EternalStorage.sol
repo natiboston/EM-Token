@@ -14,6 +14,7 @@ import "./Ownable.sol";
 contract EternalStorage is Ownable {
 
     mapping (address => bool) private _connectedContracts;
+    bytes32 private _version;
 
     event ContractConnected(address whichContract);
     event ContractDisconnected(address whichContract);
@@ -25,12 +26,23 @@ contract EternalStorage is Ownable {
     mapping(bytes32 => bool) private _boolStorage;
     mapping(bytes32 => string) private _stringStorage;
 
+    constructor(bytes32 version) public {
+        _version = version;
+    }
+
     /**
      * @dev Throws if called by any account other than the _userContract.
      */
     modifier onlyConnectedContract() {
         require(_connectedContracts[msg.sender], "Calling contract not connected");
         _;
+    }
+
+    /**
+     * @notice Returns the version of this eternal storage
+     */
+    function version() public view returns (bytes32) {
+        return _version;
     }
 
     /**
@@ -88,8 +100,9 @@ contract EternalStorage is Ownable {
      * @notice Deletes the value of a uint256 corresponding to a key
      * @param _key The key that indexes the value
      */
-    function deleteUint(bytes32 _key) onlyConnectedContract external {
+    function deleteUint(bytes32 _key) onlyConnectedContract external returns (bool) {
         delete _uIntStorage[_key];
+        return true;
     }
 
     // int256
@@ -115,8 +128,9 @@ contract EternalStorage is Ownable {
      * @notice Deletes the value of a int256 corresponding to a key
      * @param _key The key that indexes the value
      */
-    function deleteInt(bytes32 _key) onlyConnectedContract external {
+    function deleteInt(bytes32 _key) onlyConnectedContract external returns (bool) {
         delete _intStorage[_key];
+        return true;
     }
 
     // address
@@ -142,8 +156,9 @@ contract EternalStorage is Ownable {
      * @notice Deletes the value of an address corresponding to a key
      * @param _key The key that indexes the value
      */
-    function deleteAddress(bytes32 _key) onlyConnectedContract external {
+    function deleteAddress(bytes32 _key) onlyConnectedContract external returns (bool) {
         delete _addressStorage[_key];
+        return true;
     }
 
     // bytes
@@ -169,8 +184,9 @@ contract EternalStorage is Ownable {
      * @notice Deletes the value of a bytes32 corresponding to a key
      * @param _key The key that indexes the value
      */
-    function deleteBytes(bytes32 _key) onlyConnectedContract external {
+    function deleteBytes(bytes32 _key) onlyConnectedContract external returns (bool) {
         delete _bytesStorage[_key];
+        return true;
     }
 
     // bool
@@ -196,8 +212,9 @@ contract EternalStorage is Ownable {
      * @notice Deletes the value of a bool corresponding to a key
      * @param _key The key that indexes the value
      */
-    function deleteBool(bytes32 _key) onlyConnectedContract external {
+    function deleteBool(bytes32 _key) onlyConnectedContract external returns (bool) {
         delete _boolStorage[_key];
+        return true;
     }
 
     // string
@@ -223,8 +240,9 @@ contract EternalStorage is Ownable {
      * @notice Deletes the value of a string corresponding to a key
      * @param _key The key that indexes the value
      */
-    function deleteString(bytes32 _key) onlyConnectedContract external {
+    function deleteString(bytes32 _key) onlyConnectedContract external returns (bool) {
         delete _stringStorage[_key];
+        return true;
     }
 
 }
