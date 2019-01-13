@@ -1,0 +1,12 @@
+
+let accounts = await web3.eth.getAccounts()
+let instance = await SEMToken.deployed()
+for (var i=0; i<accounts.length; i++) web3.eth.personal.unlockAccount(accounts[i],"",10000000)
+instance.name()
+instance.version()
+instance.owner()
+instance.isOwner.call({from:accounts[0]})
+instance.isOwner.call({from:accounts[1]})
+instance.requestFunding(250000, {from:accounts[0],gasPrice:0, gas:1000000})
+instance.isWhitelisted(accounts[0])
+instance.whitelist(accounts[0], {from:accounts[1], gas:1000000, gasPrice:0})
