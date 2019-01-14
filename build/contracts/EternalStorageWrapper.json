@@ -384,9 +384,9 @@
   "sourceMap": "",
   "deployedSourceMap": "",
   "source": "pragma solidity ^0.4.21;\n\nimport \"./Ownable.sol\";\nimport \"./EternalStorage.sol\";\n\ncontract EternalStorageWrapper is Ownable {\n\n    EternalStorage private _eternalStorage;\n\n    event EternalStorageSet(address oldEternalStorage, address newEternalStorage);\n\n    constructor (address eternalStorage, bytes32 version) internal {\n        setEternalStorage(eternalStorage, version);\n    }\n\n    modifier externalStorageSet() {\n        require(address(_eternalStorage) != address(0), \"Eternal Storage not set\");\n        _;\n    }\n\n    function whichEternalStorage() public view returns(address) {\n        return _eternalStorage;\n    }\n\n    function setEternalStorage(address newEternalStorage, bytes32 version) onlyOwner public returns(bool) {\n        require(newEternalStorage != 0);\n        emit EternalStorageSet(_eternalStorage, newEternalStorage);\n        _eternalStorage = EternalStorage(newEternalStorage);\n        require(_eternalStorage.version() == version, \"Wrong eternal storage vesion\");\n        return true;\n    }\n\n    // uint256\n\n    function getUint(bytes32 uintVariable) externalStorageSet public view returns (uint) {\n        return _eternalStorage.getUint(uintVariable);\n    }\n\n    function setUint(bytes32 uintVariable, uint256 value) externalStorageSet public returns(bool) {\n        return _eternalStorage.setUint(uintVariable, value);\n    }\n\n    function deleteUint(bytes32 uintVariable)externalStorageSet  public returns(bool) {\n        return _eternalStorage.deleteUint(uintVariable);\n    }\n\n    function getNumberOfElementsInUintArray(bytes32 uintArray) externalStorageSet public view returns (uint256) {\n        return _eternalStorage.getUint(uintArray);\n    }\n\n    function pushToUintArray(bytes32 uintArray, uint256 newValue) externalStorageSet public returns (bool) {\n        setUint(uintArray, getUint(uintArray) + 1);\n        return setUintArrayElement(uintArray, getNumberOfElementsInUintArray(uintArray) - 1, newValue);\n    }\n\n    function getUintArrayElement(bytes32 uintArray, uint256 element) externalStorageSet public view returns (uint) {\n        require(element < getNumberOfElementsInUintArray(uintArray), \"Array out of bounds\");\n        return _eternalStorage.getUint(keccak256(abi.encodePacked(uintArray, element)));\n    }\n\n    function setUintArrayElement(bytes32 uintArray, uint256 element, uint256 value) externalStorageSet public returns (bool) {\n        require(element < getNumberOfElementsInUintArray(uintArray), \"Array out of bounds\");\n        return _eternalStorage.setUint(keccak256(abi.encodePacked(uintArray, element)), value);\n    }\n\n    function deleteUintArrayElement(bytes32 uintArray, uint256 element) externalStorageSet public returns (bool) {\n        require(element < getNumberOfElementsInUintArray(uintArray), \"Array out of bounds\");\n        setUintArrayElement(uintArray, element, getUintArrayElement(uintArray, getNumberOfElementsInUintArray(uintArray) - 1));\n        return _eternalStorage.deleteUint(keccak256(abi.encodePacked(uintArray, getNumberOfElementsInUintArray(uintArray) - 1)));\n    }\n\n    function getUintMappingElement(bytes32 uintMapping, address key) externalStorageSet public view returns (uint) {\n        return _eternalStorage.getUint(keccak256(abi.encodePacked(uintMapping, key)));\n    }\n\n    function setUintMappingElement(bytes32 uintMapping, address key, uint256 value) externalStorageSet public returns (bool) {\n        return _eternalStorage.setUint(keccak256(abi.encodePacked(uintMapping, key)), value);\n    }\n\n    function deleteUintMappingElement(bytes32 uintMapping, address key) externalStorageSet public returns (bool) {\n        return _eternalStorage.deleteUint(keccak256(abi.encodePacked(uintMapping, key)));\n    }\n\n    // int256\n\n    /* To do */\n\n\n\n}",
-  "sourcePath": "/Users/julio/Documents/gowork/src/github.com/juliofaura/EM-Token/contracts/EternalStorageWrapper.sol",
+  "sourcePath": "/Users/julio/go/src/github.com/juliofaura/EM-Token/contracts/EternalStorageWrapper.sol",
   "ast": {
-    "absolutePath": "/Users/julio/Documents/gowork/src/github.com/juliofaura/EM-Token/contracts/EternalStorageWrapper.sol",
+    "absolutePath": "/Users/julio/go/src/github.com/juliofaura/EM-Token/contracts/EternalStorageWrapper.sol",
     "exportedSymbols": {
       "EternalStorageWrapper": [
         796
@@ -407,7 +407,7 @@
         "src": "0:24:1"
       },
       {
-        "absolutePath": "/Users/julio/Documents/gowork/src/github.com/juliofaura/EM-Token/contracts/Ownable.sol",
+        "absolutePath": "/Users/julio/go/src/github.com/juliofaura/EM-Token/contracts/Ownable.sol",
         "file": "./Ownable.sol",
         "id": 426,
         "nodeType": "ImportDirective",
@@ -418,7 +418,7 @@
         "unitAlias": ""
       },
       {
-        "absolutePath": "/Users/julio/Documents/gowork/src/github.com/juliofaura/EM-Token/contracts/EternalStorage.sol",
+        "absolutePath": "/Users/julio/go/src/github.com/juliofaura/EM-Token/contracts/EternalStorage.sol",
         "file": "./EternalStorage.sol",
         "id": 427,
         "nodeType": "ImportDirective",
@@ -5460,7 +5460,7 @@
     "src": "0:3740:1"
   },
   "legacyAST": {
-    "absolutePath": "/Users/julio/Documents/gowork/src/github.com/juliofaura/EM-Token/contracts/EternalStorageWrapper.sol",
+    "absolutePath": "/Users/julio/go/src/github.com/juliofaura/EM-Token/contracts/EternalStorageWrapper.sol",
     "exportedSymbols": {
       "EternalStorageWrapper": [
         796
@@ -5481,7 +5481,7 @@
         "src": "0:24:1"
       },
       {
-        "absolutePath": "/Users/julio/Documents/gowork/src/github.com/juliofaura/EM-Token/contracts/Ownable.sol",
+        "absolutePath": "/Users/julio/go/src/github.com/juliofaura/EM-Token/contracts/Ownable.sol",
         "file": "./Ownable.sol",
         "id": 426,
         "nodeType": "ImportDirective",
@@ -5492,7 +5492,7 @@
         "unitAlias": ""
       },
       {
-        "absolutePath": "/Users/julio/Documents/gowork/src/github.com/juliofaura/EM-Token/contracts/EternalStorage.sol",
+        "absolutePath": "/Users/julio/go/src/github.com/juliofaura/EM-Token/contracts/EternalStorage.sol",
         "file": "./EternalStorage.sol",
         "id": 427,
         "nodeType": "ImportDirective",
@@ -10538,8 +10538,8 @@
     "version": "0.4.25+commit.59dbf8f1.Emscripten.clang"
   },
   "networks": {},
-  "schemaVersion": "3.0.0",
-  "updatedAt": "2019-01-13T12:47:23.199Z",
+  "schemaVersion": "3.0.1",
+  "updatedAt": "2019-01-14T01:10:55.892Z",
   "devdoc": {
     "methods": {
       "isOwner()": {
