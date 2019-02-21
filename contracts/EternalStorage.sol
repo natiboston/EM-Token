@@ -1,6 +1,6 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.5;
 
-import "./Ownable.sol";
+import "./RoleControlled.sol";
 
 /**
  * @title EternalStorage
@@ -11,7 +11,7 @@ import "./Ownable.sol";
  * in order to be able to write the storage. Only the owner can whitelist ("connect") and unwhitelist
  * ("disconnect") individual contracts.
  */
-contract EternalStorage is Ownable {
+contract EternalStorage is RoleControlled {
 
     mapping (address => bool) private _connectedContracts;
     bytes32 private _version;
@@ -59,7 +59,7 @@ contract EternalStorage is Ownable {
      * @dev Only the owner can connect a contract to the eternal storage
      * @param whichContract The address of the contract that gets connected
      */
-    function connectContract(address whichContract) external onlyOwner returns (bool) {
+    function connectContract(address whichContract) external onlyRole(AdminRole) returns (bool) {
         _connectedContracts[whichContract] = true;
         emit ContractConnected(whichContract);
         return true;
@@ -71,7 +71,7 @@ contract EternalStorage is Ownable {
      * @dev Only the owner can disconnect a contract from the eternal storage
      * @param whichContract The address of the contract that gets disconnected
      */
-    function disconnectContract(address whichContract) external onlyOwner returns (bool) {
+    function disconnectContract(address whichContract) external onlyRole(AdminRole) returns (bool) {
         _connectedContracts[whichContract] = false;
         emit ContractDisconnected(whichContract);
         return true;
@@ -167,7 +167,7 @@ contract EternalStorage is Ownable {
      * @notice Reads the value of a bytes32 corresponding to a key
      * @param _key The key that indexes the value
      */
-    function getBytes(bytes32 _key) external view returns(bytes) {
+    function getBytes(bytes32 _key) external view returns(bytes memory) {
         return _bytesStorage[_key];
     }
 
@@ -175,7 +175,7 @@ contract EternalStorage is Ownable {
      * @notice Sets the value of a bytes32 corresponding to a key
      * @param _key The key that indexes the value
      */
-    function setBytes(bytes32 _key, bytes _value) onlyConnectedContract external returns (bool) {
+    function setBytes(bytes32 _key, bytes calldata _value) onlyConnectedContract external returns (bool) {
         _bytesStorage[_key] = _value;
         return true;
     }
@@ -223,7 +223,7 @@ contract EternalStorage is Ownable {
      * @notice Reads the value of a string corresponding to a key
      * @param _key The key that indexes the value
      */
-    function getString(bytes32 _key) external view returns(string) {
+    function getString(bytes32 _key) external view returns(string memory) {
         return _stringStorage[_key];
     }
 
@@ -231,7 +231,7 @@ contract EternalStorage is Ownable {
      * @notice Sets the value of a string corresponding to a key
      * @param _key The key that indexes the value
      */
-    function setString(bytes32 _key, string _value) onlyConnectedContract external returns (bool) {
+    function setString(bytes32 _key, string calldata _value) onlyConnectedContract external returns (bool) {
         _stringStorage[_key] = _value;
         return true;
     }

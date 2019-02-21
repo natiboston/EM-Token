@@ -1,9 +1,9 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.5;
 
-import "./Ownable.sol";
+import "./RoleControlled.sol";
 import "./EternalStorage.sol";
 
-contract EternalStorageWrapper is Ownable {
+contract EternalStorageWrapper is RoleControlled {
 
     EternalStorage private _eternalStorage;
 
@@ -18,13 +18,13 @@ contract EternalStorageWrapper is Ownable {
         _;
     }
 
-    function whichEternalStorage() public view returns(address) {
+    function whichEternalStorage() public view returns(EternalStorage) {
         return _eternalStorage;
     }
 
-    function setEternalStorage(address newEternalStorage, bytes32 version) onlyOwner public returns(bool) {
-        require(newEternalStorage != 0);
-        emit EternalStorageSet(_eternalStorage, newEternalStorage);
+    function setEternalStorage(address newEternalStorage, bytes32 version) onlyRole(AdminRole) public returns(bool) {
+        require(newEternalStorage != address(0), "Storage address cannot be zero");
+        emit EternalStorageSet(address(_eternalStorage), newEternalStorage);
         _eternalStorage = EternalStorage(newEternalStorage);
         require(_eternalStorage.version() == version, "Wrong eternal storage vesion");
         return true;
