@@ -1,90 +1,168 @@
 pragma solidity ^0.5;
 
-import "./RoleControlled.sol";
+import "../../../OpenZeppelin/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./EternalStorage.sol";
 
-contract EternalStorageWrapper is RoleControlled {
+/**
+ * @title EternalStorageWrapper
+ * @dev The EternalStorageWrapper can be inherited by contracts that want to use the EternalStorage construct
+ * @dev Elements in the storage should be referenced using a "module" and a "variable" names, plus one or several
+ * indices in the case of complex types such as arrays or mappings. This way different components (e.g. different
+ * contracts inherited by the same contract) can use variables with identical names. Note that only one contract
+ * instance can connect to an Eternal Storage instance
+ * @dev The wrapper needs to be connected to the EternalStorage instance to start operating normally. The correct
+ * sequence is:
+ * 1. Instantiate EternalStorage and the contract inheriting the EternalStorageWrapper
+ * 2. Call the connectContract() method in EternalStorage to whitelist the wrapper)
+ * 3. Call the setEternalStorage() method in EternalStorageWrapper to connect to the storage. Note that this will
+ *    fail if the wrapper is not previously whitelisted
+ */
+ contract EternalStorageWrapper is Ownable {
 
     EternalStorage private _eternalStorage;
 
     event EternalStorageSet(address oldEternalStorage, address newEternalStorage);
 
-    constructor (address eternalStorage, bytes32 version) internal {
-        setEternalStorage(eternalStorage, version);
+    constructor () internal {
     }
 
     modifier externalStorageSet() {
-        require(address(_eternalStorage) != address(0), "Eternal Storage not set");
+        require(isEternalStorageSet(), "Eternal Storage not set");
         _;
+    }
+
+    function isEternalStorageSet() public view returns(bool) {
+        return _eternalStorage.isContractConnected(address(this));
     }
 
     function whichEternalStorage() public view returns(EternalStorage) {
         return _eternalStorage;
     }
 
-    function setEternalStorage(address newEternalStorage, bytes32 version) onlyRole(AdminRole) public returns(bool) {
+    function setEternalStorage(address newEternalStorage) onlyOwner public {
         require(newEternalStorage != address(0), "Storage address cannot be zero");
         emit EternalStorageSet(address(_eternalStorage), newEternalStorage);
         _eternalStorage = EternalStorage(newEternalStorage);
-        require(_eternalStorage.version() == version, "Wrong eternal storage vesion");
-        return true;
+        require(isEternalStorageSet(), "Not authorized by EternalStorage");
     }
 
-    // uint256
-
-    function getUint(bytes32 uintVariable) externalStorageSet public view returns (uint) {
-        return _eternalStorage.getUint(uintVariable);
+    // Indexing keys
+    function singleElementKey(bytes32 module, bytes32 variableName) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(module, variableName));
     }
 
-    function setUint(bytes32 uintVariable, uint256 value) externalStorageSet public returns(bool) {
-        return _eternalStorage.setUint(uintVariable, value);
+    function indexedElementKey(bytes32 module, bytes32 arrayName, uint256 index) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(module, arrayName, index));
     }
 
-    function deleteUint(bytes32 uintVariable)externalStorageSet  public returns(bool) {
-        return _eternalStorage.deleteUint(uintVariable);
+    function indexedElementKey(bytes32 module, bytes32 arrayName, address _key) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(module, arrayName, _key));
     }
 
-    function getNumberOfElementsInUintArray(bytes32 uintArray) externalStorageSet public view returns (uint256) {
-        return _eternalStorage.getUint(uintArray);
+    function doubleIndexedElementKey(bytes32 module, bytes32 arrayName, bytes32 _key1, address _key2) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(module, arrayName, _key1, _key2));
     }
 
-    function pushToUintArray(bytes32 uintArray, uint256 newValue) externalStorageSet public returns (bool) {
-        setUint(uintArray, getUint(uintArray) + 1);
-        return setUintArrayElement(uintArray, getNumberOfElementsInUintArray(uintArray) - 1, newValue);
+    // Example: uint256
+
+    function getUint(bytes32 module, bytes32 uintVariable) externalStorageSet public view returns (uint) {
+        bytes32 key = singleElementKey(module, uintVariable);
+        return _eternalStorage.getUint(key);
     }
 
-    function getUintArrayElement(bytes32 uintArray, uint256 element) externalStorageSet public view returns (uint) {
-        require(element < getNumberOfElementsInUintArray(uintArray), "Array out of bounds");
-        return _eternalStorage.getUint(keccak256(abi.encodePacked(uintArray, element)));
+    function setUint(bytes32 module, bytes32 uintVariable, uint256 value) externalStorageSet public returns(bool) {
+        bytes32 key = singleElementKey(module, uintVariable);
+        return _eternalStorage.setUint(key, value);
     }
 
-    function setUintArrayElement(bytes32 uintArray, uint256 element, uint256 value) externalStorageSet public returns (bool) {
-        require(element < getNumberOfElementsInUintArray(uintArray), "Array out of bounds");
-        return _eternalStorage.setUint(keccak256(abi.encodePacked(uintArray, element)), value);
+    function deleteUint(bytes32 module, bytes32 uintVariable)externalStorageSet  public returns(bool) {
+        bytes32 key = singleElementKey(module, uintVariable);
+        return _eternalStorage.deleteUint(key);
     }
 
-    function deleteUintArrayElement(bytes32 uintArray, uint256 element) externalStorageSet public returns (bool) {
-        require(element < getNumberOfElementsInUintArray(uintArray), "Array out of bounds");
-        setUintArrayElement(uintArray, element, getUintArrayElement(uintArray, getNumberOfElementsInUintArray(uintArray) - 1));
-        return _eternalStorage.deleteUint(keccak256(abi.encodePacked(uintArray, getNumberOfElementsInUintArray(uintArray) - 1)));
+    // Example: uint256 array
+
+    function getNumberOfElementsInArray(bytes32 module, bytes32 array) externalStorageSet public view returns (uint256) {
+        bytes32 key = singleElementKey(module, array);
+        return _eternalStorage.getUint(key);
     }
 
-    function getUintMappingElement(bytes32 uintMapping, address key) externalStorageSet public view returns (uint) {
-        return _eternalStorage.getUint(keccak256(abi.encodePacked(uintMapping, key)));
+    function pushToUintArray(bytes32 module, bytes32 uintArray, uint256 newValue) externalStorageSet public returns (bool) {
+        setUint(module, uintArray, getUint(module, uintArray) + 1);
+        return setUintArrayElement(module, uintArray, getNumberOfElementsInArray(module, uintArray) - 1, newValue);
     }
 
-    function setUintMappingElement(bytes32 uintMapping, address key, uint256 value) externalStorageSet public returns (bool) {
-        return _eternalStorage.setUint(keccak256(abi.encodePacked(uintMapping, key)), value);
+    function getUintArrayElement(bytes32 module, bytes32 uintArray, uint256 element) externalStorageSet public view returns (uint) {
+        require(element < getNumberOfElementsInArray(module, uintArray), "Array out of bounds");
+        bytes32 key = indexedElementKey(module, uintArray, element);
+        return _eternalStorage.getUint(key);
     }
 
-    function deleteUintMappingElement(bytes32 uintMapping, address key) externalStorageSet public returns (bool) {
-        return _eternalStorage.deleteUint(keccak256(abi.encodePacked(uintMapping, key)));
+    function setUintArrayElement(bytes32 module, bytes32 uintArray, uint256 element, uint256 value) externalStorageSet public returns (bool) {
+        require(element < getNumberOfElementsInArray(module, uintArray), "Array out of bounds");
+        bytes32 key = indexedElementKey(module, uintArray, element);
+        return _eternalStorage.setUint(key, value);
     }
 
-    // int256
+    function deleteUintArrayElement(bytes32 module, bytes32 uintArray, uint256 element) externalStorageSet public returns (bool) {
+        require(element < getNumberOfElementsInArray(module, uintArray), "Array out of bounds");
+        setUintArrayElement(module, uintArray, element, getUintArrayElement(module, uintArray, getNumberOfElementsInArray(module, uintArray) - 1));
+        bytes32 key = indexedElementKey(module, uintArray, getNumberOfElementsInArray(module, uintArray) - 1);
+        return _eternalStorage.deleteUint(key);
+    }
 
-    /* To do */
+    // Mappings
+
+    // Get element:
+    function getUintFromMapping(bytes32 _module, bytes32 _mapping, address _key) externalStorageSet public view returns (uint) {
+        bytes32 key = indexedElementKey(_module, _mapping, _key);
+        return _eternalStorage.getUint(key);
+    }
+
+    function getBoolFromMapping(bytes32 _module, bytes32 _mapping, address _key) externalStorageSet public view returns (bool) {
+        bytes32 key = indexedElementKey(_module, _mapping, _key);
+        return _eternalStorage.getBool(key);
+    }
 
 
+    // Set element:
+    function setUintInMapping(bytes32 _module, bytes32 _mapping, address _key, uint256 _value) externalStorageSet public returns (bool) {
+        bytes32 key = indexedElementKey(_module, _mapping, _key);
+        return _eternalStorage.setUint(key, _value);
+    }
+
+    function setBoolInMapping(bytes32 _module, bytes32 _mapping, address _key, bool _value) externalStorageSet public returns (bool) {
+        bytes32 key = indexedElementKey(_module, _mapping, _key);
+        return _eternalStorage.setBool(key, _value);
+    }
+
+
+    // Delete element:
+    function deleteUintFromMapping(bytes32 _module, bytes32 _mapping, address _key) externalStorageSet public returns (bool) {
+        bytes32 key = indexedElementKey(_module, _mapping, _key);
+        return _eternalStorage.deleteUint(key);
+    }
+
+    function deleteBoolFromMapping(bytes32 _module, bytes32 _mapping, address _key) externalStorageSet public returns (bool) {
+        bytes32 key = indexedElementKey(_module, _mapping, _key);
+        return _eternalStorage.deleteBool(key);
+    }
+
+    // Double mappings
+
+    function getBoolFromDoubleMapping(bytes32 _module, bytes32 _mapping, bytes32 _key1, address _key2) externalStorageSet public view returns (bool) {
+        bytes32 key = doubleIndexedElementKey(_module, _mapping, _key1, _key2);
+        return _eternalStorage.getBool(key);
+    }
+
+    function setBoolInDoubleMapping(bytes32 _module, bytes32 _mapping, bytes32 _key1, address _key2, bool _value) externalStorageSet public returns (bool) {
+        bytes32 key = doubleIndexedElementKey(_module, _mapping, _key1, _key2);
+       return _eternalStorage.setBool(key, _value);
+    }
+
+    function deleteBoolFromDoubleMapping(bytes32 _module, bytes32 _mapping, bytes32 _key1, address _key2) externalStorageSet public returns (bool) {
+        bytes32 key = doubleIndexedElementKey(_module, _mapping, _key1, _key2);
+        return _eternalStorage.deleteBool(key);
+    }
 
 }

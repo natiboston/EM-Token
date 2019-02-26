@@ -1,6 +1,6 @@
 pragma solidity ^0.5;
 
-import "./RoleControlled.sol";
+import "../../../OpenZeppelin/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 /**
  * @title EternalStorage
@@ -11,10 +11,9 @@ import "./RoleControlled.sol";
  * in order to be able to write the storage. Only the owner can whitelist ("connect") and unwhitelist
  * ("disconnect") individual contracts.
  */
-contract EternalStorage is RoleControlled {
+contract EternalStorage is Ownable {
 
     mapping (address => bool) private _connectedContracts;
-    bytes32 private _version;
 
     event ContractConnected(address whichContract);
     event ContractDisconnected(address whichContract);
@@ -26,8 +25,7 @@ contract EternalStorage is RoleControlled {
     mapping(bytes32 => bool) private _boolStorage;
     mapping(bytes32 => string) private _stringStorage;
 
-    constructor(bytes32 version) public {
-        _version = version;
+    constructor() public {
     }
 
     /**
@@ -36,13 +34,6 @@ contract EternalStorage is RoleControlled {
     modifier onlyConnectedContract() {
         require(_connectedContracts[msg.sender], "Calling contract not connected");
         _;
-    }
-
-    /**
-     * @notice Returns the version of this eternal storage
-     */
-    function version() public view returns (bytes32) {
-        return _version;
     }
 
     /**
@@ -59,7 +50,7 @@ contract EternalStorage is RoleControlled {
      * @dev Only the owner can connect a contract to the eternal storage
      * @param whichContract The address of the contract that gets connected
      */
-    function connectContract(address whichContract) external onlyRole(AdminRole) returns (bool) {
+    function connectContract(address whichContract) external onlyOwner returns (bool) {
         _connectedContracts[whichContract] = true;
         emit ContractConnected(whichContract);
         return true;
@@ -71,7 +62,7 @@ contract EternalStorage is RoleControlled {
      * @dev Only the owner can disconnect a contract from the eternal storage
      * @param whichContract The address of the contract that gets disconnected
      */
-    function disconnectContract(address whichContract) external onlyRole(AdminRole) returns (bool) {
+    function disconnectContract(address whichContract) external onlyOwner returns (bool) {
         _connectedContracts[whichContract] = false;
         emit ContractDisconnected(whichContract);
         return true;
@@ -203,7 +194,7 @@ contract EternalStorage is RoleControlled {
      * @notice Sets the value of a bool corresponding to a key
      * @param _key The key that indexes the value
      */
-    function setBol(bytes32 _key, bool _value) onlyConnectedContract external returns (bool) {
+    function setBool(bytes32 _key, bool _value) onlyConnectedContract external returns (bool) {
         _boolStorage[_key] = _value;
         return true;
     }
