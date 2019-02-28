@@ -1,6 +1,6 @@
 pragma solidity ^0.5;
 
-import "../../../OpenZeppelin/openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "../../../../OpenZeppelin/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 /**
  * @title EternalStorage
