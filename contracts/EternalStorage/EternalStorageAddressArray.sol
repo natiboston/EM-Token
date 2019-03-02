@@ -11,7 +11,7 @@ contract EternalStorageAddressArray is EternalStorageBase {
         returns (bool)
     {
         setUint(module, array, getUint(module, array) + 1);
-        return setAddressToArray(module, array, getNumberOfElementsInArray(module, array) - 1, newValue);
+        return setAddressInArray(module, array, getNumberOfElementsInArray(module, array) - 1, newValue);
     }
 
     function getAddressFromArray(bytes32 module, bytes32 array, uint256 element)
@@ -25,7 +25,7 @@ contract EternalStorageAddressArray is EternalStorageBase {
         return _eternalStorage.getAddress(key);
     }
 
-    function setAddressToArray(bytes32 module, bytes32 array, uint256 element, address value)
+    function setAddressInArray(bytes32 module, bytes32 array, uint256 element, address value)
         public
         externalStorageSet
         notPaused
@@ -43,7 +43,7 @@ contract EternalStorageAddressArray is EternalStorageBase {
         returns (bool)
     {
         require(element < getNumberOfElementsInArray(module, array), "Array out of bounds");
-        setAddressToArray(module, array, element, getAddressFromArray(module, array, getNumberOfElementsInArray(module, array) - 1));
+        setAddressInArray(module, array, element, getAddressFromArray(module, array, getNumberOfElementsInArray(module, array) - 1));
         bytes32 key = indexedElementKey(module, array, getNumberOfElementsInArray(module, array) - 1);
         return _eternalStorage.deleteAddress(key);
     }

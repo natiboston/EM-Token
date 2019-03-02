@@ -60,6 +60,20 @@ contract Fundable is AFundable, RoleControlled {
         return FundingRequestStatusCode(getUintFromArray(FUNDABLE_CONTRACT_NAME, _STATUS_CODES, _getIndex(fundingId)));
     }
 
+    function _setStatus(string memory fundingId, FundingRequestStatusCode status) private returns (bool) {
+        setUintInArray(FUNDABLE_CONTRACT_NAME, _STATUS_CODES, _getIndex(fundingId), uint256(status));
+        return true;
+    }
+
+    function _getAllowance(address walletToFund, address requester) public view returns (uint){
+        return getUintFromDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, requester);
+    }
+
+    function _setAllowance(address walletToFund, address requester, uint256 value) public returns (bool){
+        setUintInDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, requester, value);
+        return true;
+    }
+
     // Modifiers
 
     modifier fundingRequestNotClosed(string memory fundingId) {
@@ -79,13 +93,13 @@ contract Fundable is AFundable, RoleControlled {
     }
 
     function _approveToRequestFunding(address walletToFund, address requester, uint256 amount) private returns (bool) {
-        setUintInDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, requester, amount);
+        _setAllowance(walletToFund, requester, amount);
         emit ApprovalToRequestFunding(walletToFund, requester, amount);
         return true;
     }
 
     function allowanceToRequestFunding(address walletToFund, address requester) public view returns (uint256) {
-        return getUintFromDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, requester);
+        return _getAllowance(walletToFund, requester);
     }
 
     function requestFunding(string memory fundingId, uint256 amount, string memory instructions) public returns (bool) {
@@ -97,7 +111,7 @@ contract Fundable is AFundable, RoleControlled {
     {
         // This will throw if the requester is not previously allowed due to the protection of the ".sub" method. This
         // is the only check that the requester is actually approved to do so
-        uint256 currentAllowance = getUintFromDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, msg.sender);
+        uint256 currentAllowance = _getAllowance(walletToFund, msg.sender);
         _approveToRequestFunding(walletToFund, msg.sender, currentAllowance.sub(amount));
         return _requestFunding(fundingId, walletToFund, msg.sender, amount, instructions);
     }
@@ -127,7 +141,7 @@ contract Fundable is AFundable, RoleControlled {
         string memory instructions;
         FundingRequestStatusCode status;
         (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
-        setUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, index, uint256(FundingRequestStatusCode.Cancelled));
+        _setStatus(fundingId, FundingRequestStatusCode.Cancelled);
         if(walletToFund != requester) {
             _approveToRequestFunding(walletToFund, requester, allowanceToRequestFunding(walletToFund, requester).add(amount));
         }
@@ -149,7 +163,7 @@ contract Fundable is AFundable, RoleControlled {
         string memory instructions;
         FundingRequestStatusCode status;
         (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
-        setUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, index, uint256(FundingRequestStatusCode.Executed));
+        _setStatus(fundingId, FundingRequestStatusCode.Executed);
         emit FundingRequestExecuted(fundingId, walletToFund, requester);
         return true;
     }
@@ -166,7 +180,7 @@ contract Fundable is AFundable, RoleControlled {
         string memory instructions;
         FundingRequestStatusCode status;
         (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
-        setUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, index, uint256(FundingRequestStatusCode.Rejected));
+        _setStatus(fundingId, FundingRequestStatusCode.Rejected);
         if(walletToFund != requester) {
             _approveToRequestFunding(walletToFund, requester, allowanceToRequestFunding(walletToFund, requester).add(amount));
         }

@@ -11,7 +11,7 @@ contract EternalStorageUintArray is EternalStorageBase {
         returns (bool)
     {
         setUint(module, array, getUint(module, array) + 1);
-        return setUintToArray(module, array, getNumberOfElementsInArray(module, array) - 1, newValue);
+        return setUintInArray(module, array, getNumberOfElementsInArray(module, array) - 1, newValue);
     }
 
     function getUintFromArray(bytes32 module, bytes32 array, uint256 element)
@@ -25,7 +25,7 @@ contract EternalStorageUintArray is EternalStorageBase {
         return _eternalStorage.getUint(key);
     }
 
-    function setUintToArray(bytes32 module, bytes32 array, uint256 element, uint256 value)
+    function setUintInArray(bytes32 module, bytes32 array, uint256 element, uint256 value)
         public
         externalStorageSet
         notPaused
@@ -43,7 +43,7 @@ contract EternalStorageUintArray is EternalStorageBase {
         returns (bool)
     {
         require(element < getNumberOfElementsInArray(module, array), "Array out of bounds");
-        setUintToArray(module, array, element, getUintFromArray(module, array, getNumberOfElementsInArray(module, array) - 1));
+        setUintInArray(module, array, element, getUintFromArray(module, array, getNumberOfElementsInArray(module, array) - 1));
         bytes32 key = indexedElementKey(module, array, getNumberOfElementsInArray(module, array) - 1);
         return _eternalStorage.deleteUint(key);
     }
