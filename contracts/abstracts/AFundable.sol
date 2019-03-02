@@ -10,7 +10,7 @@ pragma solidity ^0.5;
  */
 contract AFundable {
 
-    enum FundingRequestStatusCode { Requested, Executed, Rejected, Cancelled }
+    enum FundingRequestStatusCode { Nonexistent, Requested, Executed, Rejected, Cancelled }
 
     event FundingRequested(string indexed fundingId, address indexed walletToFund, address indexed requester, uint256 amount, string instructions);
     event FundingRequestExecuted(string indexed fundingId, address indexed walletToFund, address indexed requester);
@@ -27,14 +27,14 @@ contract AFundable {
      * @param amount The amount of the allowance
      * @notice (TO DO: add increase / decrease alloance approval methods)
      */
-    function approveToRequestFunding(address requester, uint256 amount) external returns (bool);
+    function approveToRequestFunding(address requester, uint256 amount) public returns (bool);
 
     /**
      * @dev View method to read existing allowances to request funding
      * @param walletToFund The owner of the wallet that would receive the funding
      * @param requester The address that can request funding on behalf of the wallet owner
      */
-    function allowanceToRequestFunding(address walletToFund, address requester) external view returns (uint256);
+    function allowanceToRequestFunding(address walletToFund, address requester) public view returns (uint256);
 
     // Initiating funding requests:
 
@@ -46,7 +46,7 @@ contract AFundable {
      * or a code to indicate that the tokenization entity should use the default bank account associated with
      * the wallet
      */
-    function requestFunding(uint256 amount, string calldata instructions) external returns (uint256 fundingId);
+    function requestFunding(uint256 amount, string memory instructions) public returns (uint256 fundingId);
 
     /**
      * @dev Method to request funding on behalf of a (different) wallet owner (analogous to "transferFrom" in
@@ -55,7 +55,7 @@ contract AFundable {
      * @param amount The amount requested
      * @param instructions The debit instructions, as is "requestFunding"
      */
-    function requestFundingFrom(address walletToFund, uint256 amount, string calldata instructions) external returns (uint256 fundingId);
+    function requestFundingFrom(address walletToFund, uint256 amount, string memory instructions) public returns (uint256 fundingId);
 
     // Cancelling funding requests:
 
@@ -69,7 +69,7 @@ contract AFundable {
      * @param fundingId The ID of the funding request, which can then be used to index all the information about
      * the funding request
      */
-    function cancelFundingRequest(uint256 fundingId) external returns (bool);
+    function cancelFundingRequest(uint256 fundingId) public returns (bool);
 
     // Executing and rejecting funding requests (to be called by the tokenizer authority, i.e. onlyOwner):
 
@@ -82,7 +82,7 @@ contract AFundable {
      * @dev Only operator can do this
      * 
      */
-    function executeFundingRequest(uint256 fundingId) external returns (bool);
+    function executeFundingRequest(uint256 fundingId) public returns (bool);
 
     /**
      * @dev Function to be called by the tokenizer administrator to reject a funding request. When the administrator
@@ -95,7 +95,7 @@ contract AFundable {
      * @dev Only operator can do this
      * 
      */
-    function rejectFundingRequest(uint256 fundingId, string calldata reason) external returns (bool);
+    function rejectFundingRequest(uint256 fundingId, string memory reason) public returns (bool);
 
     // Looking up funding request data:
 
@@ -103,12 +103,12 @@ contract AFundable {
      * @dev Function to retrieve all the information available for a particular funding request
      * @param fundingId The ID of the funding request
      */
-    function retrieveFundingData(uint256 fundingId) external view returns (address walletToFund, address requester, uint256 amount, string memory instructions, FundingRequestStatusCode status);
+    function retrieveFundingData(uint256 fundingId) public view returns (address walletToFund, address requester, uint256 amount, string memory instructions, FundingRequestStatusCode status);
 
     /**
      * @dev This function returns the amount of funding requests outstanding and closed, since they are stored in an
      * array and the position in the array constitutes the ID of each funding request
      */
-    function manyFundingRequests() external view returns (uint256 many);
+    function manyFundingRequests() public view returns (uint256 many);
 
 }

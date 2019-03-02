@@ -34,11 +34,13 @@ contract Fundable is AFundable, RoleControlled {
 
     // Utility functions
     
-    function _getIndex(string memory fundingId) private view fundingRequestExists(fundingId) returns (uint256) {
-        return getUintFromMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDICES, fundingId);
+    function _getIndex(string memory fundingId) private view returns (uint256) {
+        uint256 index = getUintFromMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDICES, fundingId);
+        require(index > 0, "Funding request does not exist");
+        return index;
     }
 
-    function _getwalletToFund(string memory fundingId) private view returns (address) {
+    function _getWalletToFund(string memory fundingId) private view returns (address) {
         return getAddressFromArray(FUNDABLE_CONTRACT_NAME, _WALLETS_TO_FUND, _getIndex(fundingId));
     }
 
@@ -60,15 +62,6 @@ contract Fundable is AFundable, RoleControlled {
 
     // Modifiers
 
-    modifier fundingRequestExists(string memory fundingId) {
-        require(
-            (getNumberOfElementsInArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS) > 0) &&
-            (getUintFromMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDICES, fundingId) >0),
-            "Funding request does not exist"
-        );
-        _;
-    }
-
     modifier fundingRequestNotClosed(string memory fundingId) {
         require(_getStatus(fundingId) == FundingRequestStatusCode.Requested, "Funding request is already closed");
         _;
@@ -81,95 +74,120 @@ contract Fundable is AFundable, RoleControlled {
 
     // Now to the actual implementation:
 
-    function approveToRequestFunding(address requester, uint256 amount) external returns (bool) {
-        setUintInDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, msg.sender, requester, amount);
-        emit ApprovalToRequestFunding(msg.sender, requester, amount);
+    function approveToRequestFunding(address requester, uint256 amount) public returns (bool) {
+        return _approveToRequestFunding(msg.sender, requester, amount);
+    }
+
+    function _approveToRequestFunding(address walletToFund, address requester, uint256 amount) private returns (bool) {
+        setUintInDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, requester, amount);
+        emit ApprovalToRequestFunding(walletToFund, requester, amount);
         return true;
     }
 
-/*
-    function allowanceToRequestFunding(address walletToFund, address requester) external view returns (uint256) {
-        return _allowedToRequestFunding[walletToFund][requester];
+    function allowanceToRequestFunding(address walletToFund, address requester) public view returns (uint256) {
+        return getUintFromDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, requester);
     }
 
-    function requestFunding(uint256 amount, string calldata instructions) external
-        notPaused
-        returns (uint256 fundingId) {
-
-        return _requestFunding(msg.sender, msg.sender, amount, instructions);
+    function requestFunding(string memory fundingId, uint256 amount, string memory instructions) public returns (bool) {
+        return _requestFunding(fundingId, msg.sender, msg.sender, amount, instructions);
     }
 
-    function requestFundingFrom(address walletToFund, uint256 amount, string calldata instructions) external
-        notPaused
-        returns (uint256 fundingId) {
-
+    function requestFundingFrom(string memory fundingId, address walletToFund, uint256 amount, string memory instructions)
+        public returns (bool)
+    {
         // This will throw if the requester is not previously allowed due to the protection of the ".sub" method. This
         // is the only check that the requester is actually approved to do so
-        _approveToRequestFunding(walletToFund, msg.sender, _allowedToRequestFunding[walletToFund][msg.sender].sub(amount));
-        return _requestFunding(walletToFund, msg.sender, amount, instructions);
+        uint256 currentAllowance = getUintFromDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, msg.sender);
+        _approveToRequestFunding(walletToFund, msg.sender, currentAllowance.sub(amount));
+        return _requestFunding(fundingId, walletToFund, msg.sender, amount, instructions);
     }
 
-    function _requestFunding(address walletToFund, address requester, uint256 amount, string memory instructions) internal
-    returns (uint256 fundingId) {
-
-        fundingId = _fundings.push(FundingRequestData(walletToFund, requester, amount, instructions, FundingRequestStatusCode.Requested)) - 1;
-        emit FundingRequested(fundingId, walletToFund, msg.sender, amount, instructions);
-        return fundingId;
+    function _requestFunding(string memory fundingId, address walletToFund, address requester, uint256 amount, string memory instructions)
+        private returns (bool)
+    {
+        pushStringToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, fundingId);
+        pushAddressToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, walletToFund);
+        pushAddressToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, requester);
+        pushUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, amount);
+        pushStringToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, instructions);
+        pushUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, uint256(FundingRequestStatusCode.Requested));
+        emit FundingRequested(fundingId, walletToFund, requester, amount, instructions);
+        return true;
     }
 
-    function cancelFundingRequest(uint256 fundingId) external
-        fundingRequestExists(fundingId)
+    function cancelFundingRequest(string memory fundingId) public
         fundingRequestNotClosed(fundingId)
         fundingRequesterOnly(fundingId)
-        notPaused
-        returns (bool) {
-
-        _fundings[fundingId].status = FundingRequestStatusCode.Cancelled;
-        if(_fundings[fundingId].walletToFund != _fundings[fundingId].requester && msg.sender == _fundings[fundingId].requester) {
-            _approveToRequestFunding(_fundings[fundingId].walletToFund, _fundings[fundingId].requester, _allowedToRequestFunding[_fundings[fundingId].walletToFund][_fundings[fundingId].requester].add(_fundings[fundingId].amount));
+        returns (bool)
+    {
+        uint256 index;
+        address walletToFund;
+        address requester;
+        uint256 amount;
+        string memory instructions;
+        FundingRequestStatusCode status;
+        (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
+        setUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, index, uint256(FundingRequestStatusCode.Cancelled));
+        if(walletToFund != requester) {
+            _approveToRequestFunding(walletToFund, requester, allowanceToRequestFunding(walletToFund, requester).add(amount));
         }
-        emit FundingRequestCancelled(fundingId, _fundings[fundingId].walletToFund, _fundings[fundingId].requester);
+        emit FundingRequestCancelled(fundingId, walletToFund, requester);
         return true;
     }
 
-    function executeFundingRequest(uint256 fundingId) external
-        fundingRequestExists(fundingId)
+    function executeFundingRequest(string memory fundingId) public
         fundingRequestNotClosed(fundingId)
-        onlyOwner
-        returns (bool) {
-
+        onlyRole(ADMIN_ROLE)
+        returns (bool)
+    {
         // This to be done upstream and then call this.supra
         // _mint(_fundings[fundingId].requester, _fundings[fundingId].amount);
-        _fundings[fundingId].status = FundingRequestStatusCode.Executed;
-        emit FundingRequestExecuted(fundingId, _fundings[fundingId].walletToFund, _fundings[fundingId].requester);
+        uint256 index;
+        address walletToFund;
+        address requester;
+        uint256 amount;
+        string memory instructions;
+        FundingRequestStatusCode status;
+        (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
+        setUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, index, uint256(FundingRequestStatusCode.Executed));
+        emit FundingRequestExecuted(fundingId, walletToFund, requester);
         return true;
     }
 
-    function rejectFundingRequest(uint256 fundingId, string calldata reason) external
-        fundingRequestExists(fundingId)
+    function rejectFundingRequest(string memory fundingId, string memory reason) public
         fundingRequestNotClosed(fundingId)
-        onlyOwner
-        returns (bool) {
-
-        if(_fundings[fundingId].walletToFund != _fundings[fundingId].requester) {
-            _approveToRequestFunding(_fundings[fundingId].walletToFund, _fundings[fundingId].requester, _allowedToRequestFunding[_fundings[fundingId].walletToFund][_fundings[fundingId].requester].add(_fundings[fundingId].amount));
+        onlyRole(ADMIN_ROLE)
+        returns (bool)
+    {
+        uint256 index;
+        address walletToFund;
+        address requester;
+        uint256 amount;
+        string memory instructions;
+        FundingRequestStatusCode status;
+        (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
+        setUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, index, uint256(FundingRequestStatusCode.Rejected));
+        if(walletToFund != requester) {
+            _approveToRequestFunding(walletToFund, requester, allowanceToRequestFunding(walletToFund, requester).add(amount));
         }
-        _fundings[fundingId].status = FundingRequestStatusCode.Rejected;
-        emit FundingRequestRejected(fundingId, _fundings[fundingId].walletToFund, _fundings[fundingId].requester, reason);
+        emit FundingRequestRejected(fundingId, walletToFund, requester, reason);
         return true;
     }
 
-    function retrieveFundingData(uint256 fundingId) external view
-        fundingRequestExists(fundingId)
-        returns (address walletToFund, address requester, uint256 amount, string memory instructions, FundingRequestStatusCode status) {
-
-        (walletToFund, requester, amount, instructions, status) = (_fundings[fundingId].walletToFund, _fundings[fundingId].requester, _fundings[fundingId].amount, _fundings[fundingId].instructions, _fundings[fundingId].status);
-        return (walletToFund, requester, amount, instructions, status);
+    function retrieveFundingData(string memory fundingId)
+        public view
+        returns (uint256 index, address walletToFund, address requester, uint256 amount, string memory instructions, FundingRequestStatusCode status)
+    {
+        index = _getIndex(fundingId);
+        walletToFund = _getWalletToFund(fundingId);
+        requester = _getRequester(fundingId);
+        amount = _getAmount(fundingId);
+        instructions = _getInstructions(fundingId);
+        status = _getStatus(fundingId);
     }
 
-    function manyFundingRequests() external view returns (uint256 many) {
-        return _fundings.length;
+    function manyFundingRequests() public view returns (uint256 many) {
+        return getUintFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, 0);
     }
-*/
 
 }
