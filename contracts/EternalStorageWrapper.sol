@@ -1,12 +1,12 @@
 pragma solidity ^0.5;
 
-import "./EternalStorage/EternalStorageUintArray.sol";
-import "./EternalStorage/EternalStorageAddressArray.sol";
-import "./EternalStorage/EternalStorageStringArray.sol";
-import "./EternalStorage/EternalStorageAllAddressMappings.sol";
-import "./EternalStorage/EternalStorageAllStringMappings.sol";
-import "./EternalStorage/EternalStorageBoolDoubleMapping.sol";
-import "./EternalStorage/EternalStorageUintDoubleMapping.sol";
+import "../../EternalStorage/contracts/EternalStorageUintArray.sol";
+import "../../EternalStorage/contracts/EternalStorageAddressArray.sol";
+import "../../EternalStorage/contracts/EternalStorageStringArray.sol";
+import "../../EternalStorage/contracts/EternalStorageAllAddressMappings.sol";
+import "../../EternalStorage/contracts/EternalStorageAllStringMappings.sol";
+import "../../EternalStorage/contracts/EternalStorageBoolDoubleMapping.sol";
+import "../../EternalStorage/contracts/EternalStorageUintDoubleMapping.sol";
 
 /**
  * @title EternalStorageWrapper
