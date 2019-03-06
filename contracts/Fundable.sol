@@ -22,14 +22,14 @@ contract Fundable is Compliant {
 
     /**
      * @dev Data structures (implemented in the eternal storage):
-     * @dev _FUNDING_IDS : bytes32 array with funding IDs
+     * @dev _FUNDING_IDS : string array with funding IDs
      * @dev _WALLETS_TO_FUND : address array with the addresses that should receive the funds requested
      * @dev _FUNDING_REQUESTERS : address array with the addresses of the requesters of the funds
      * @dev _FUNDING_AMOUNTS : uint256 array with the funding amounts being requested
      * @dev _FUNDING_INSTRUCTIONS : string array with the funding instructions (e.g. a reference to the bank account
      * to debit)
      * @dev _FUNDING_STATUS_CODES : FundingRequestStatusCode array with the status code for the funding request
-     * @dev _FUNDING_IDS_INDICES : mapping (string => uint256) storing the indexes for funding requests data
+     * @dev _FUNDING_IDS_INDEXES : mapping (string => uint256) storing the indexes for funding requests data
      * @dev _ALLOWED_TO_REQUEST_FUNDING : mapping (address => mapping (address => uint256)) with the allowances
      * to perform funding requests
      */
@@ -38,29 +38,55 @@ contract Fundable is Compliant {
     bytes32 constant private _FUNDING_REQUESTERS = "_fundingRequesters";
     bytes32 constant private _FUNDING_AMOUNTS = "_FundingAmounts";
     bytes32 constant private _FUNDING_INSTRUCTIONS = "_FundingInstructions";
-    bytes32 constant private _FUNDING_STATUS_CODES = "_fundingStatusCode";
-    bytes32 constant private _FUNDING_IDS_INDICES = "_fundingIDsIndices";
+    bytes32 constant private _FUNDING_STATUS_CODES = "_fundingStatusCodes";
+    bytes32 constant private _FUNDING_IDS_INDEXES = "_fundingIDsIndexes";
     bytes32 constant private _ALLOWED_TO_REQUEST_FUNDING = "_allowedToRequestFunding";
 
     // Events
 
-    event FundingRequested(string indexed fundingId, address indexed walletToFund, address indexed requester, uint256 amount, string instructions);
-    event FundingRequestExecuted(string indexed fundingId, address indexed walletToFund, address indexed requester);
-    event FundingRequestRejected(string indexed fundingId, address indexed walletToFund, address indexed requester, string reason);
-    event FundingRequestCancelled(string indexed fundingId, address indexed walletToFund, address indexed requester);
+    event FundingRequested(
+        string indexed fundingId,
+        address indexed walletToFund,
+        address indexed requester,
+        uint256 amount,
+        string instructions,
+        uint256 index
+    );
+
+    event FundingRequestExecuted(string indexed fundingId);
+
+    event FundingRequestRejected(string indexed fundingId, string reason);
+
+    event FundingRequestCancelled(string indexed fundingId);
+
     event ApprovalToRequestFunding(address indexed walletToFund, address indexed requester, uint256 value);
 
     // Constructor
 
     // Modifiers
 
+    modifier fundingRequestExists(string memory fundingId) {
+        require(_getFundingIndex(fundingId) == 0, "Funding request does not exist");
+        _;
+    }
+
+    modifier fundingRequestIndexExists(uint256 index) {
+        require(index > 0 && index <= manyFundingRequests(), "Funding request does not exist");
+        _;
+    }
+
+    modifier fundingRequestDoesNotExist(string memory fundingId) {
+        require(_getFundingIndex(fundingId) == 0, "Funding request already exists");
+        _;
+    }
+    
     modifier fundingRequestNotClosed(string memory fundingId) {
-        require(_getStatus(fundingId) == FundingRequestStatusCode.Requested, "Funding request is already closed");
+        require(_getFundingStatus(_getFundingIndex(fundingId)) == FundingRequestStatusCode.Requested, "Funding request is already closed");
         _;
     }
 
     modifier fundingRequesterOnly(string memory fundingId) {
-        require(msg.sender == _getRequester(fundingId), "Sender is not the requester");
+        require(msg.sender == _getFundingRequester(_getFundingIndex(fundingId)), "Sender is not the requester");
         _;
     }
 
@@ -94,8 +120,12 @@ contract Fundable is Compliant {
      * or a code to indicate that the tokenization entity should use the default bank account associated with
      * the wallet
      */
-    function requestFunding(string memory fundingId, uint256 amount, string memory instructions) public returns (bool) {
-        return _requestFunding(fundingId, msg.sender, msg.sender, amount, instructions);
+    function requestFunding(string memory fundingId, uint256 amount, string memory instructions)
+        public
+        fundingRequestDoesNotExist(fundingId)
+        returns (uint256 index)
+    {
+        index = _createFundingRequest(fundingId, msg.sender, msg.sender, amount, instructions);
     }
 
     /**
@@ -106,13 +136,15 @@ contract Fundable is Compliant {
      * @param instructions The debit instructions, as is "requestFunding"
      */
     function requestFundingFrom(string memory fundingId, address walletToFund, uint256 amount, string memory instructions)
-        public returns (bool)
+        public
+        fundingRequestDoesNotExist(fundingId)
+        returns (uint256 index)
     {
         // This will throw if the requester is not previously allowed due to the protection of the ".sub" method. This
         // is the only check that the requester is actually approved to do so
         uint256 currentAllowance = _getAllowanceToRequestFunding(walletToFund, msg.sender);
         _approveToRequestFunding(walletToFund, msg.sender, currentAllowance.sub(amount));
-        return _requestFunding(fundingId, walletToFund, msg.sender, amount, instructions);
+        index = _createFundingRequest(fundingId, walletToFund, msg.sender, amount, instructions);
     }
 
     /**
@@ -137,11 +169,11 @@ contract Fundable is Compliant {
         string memory instructions;
         FundingRequestStatusCode status;
         (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
-        _setStatus(fundingId, FundingRequestStatusCode.Cancelled);
+        _setFundingStatus(_getFundingIndex(fundingId), FundingRequestStatusCode.Cancelled);
         if(walletToFund != requester) {
             _approveToRequestFunding(walletToFund, requester, allowanceToRequestFunding(walletToFund, requester).add(amount));
         }
-        emit FundingRequestCancelled(fundingId, walletToFund, requester);
+        emit FundingRequestCancelled(fundingId);
         return true;
     }
 
@@ -167,8 +199,8 @@ contract Fundable is Compliant {
         string memory instructions;
         FundingRequestStatusCode status;
         (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
-        _setStatus(fundingId, FundingRequestStatusCode.Executed);
-        emit FundingRequestExecuted(fundingId, walletToFund, requester);
+        _setFundingStatus(_getFundingIndex(fundingId), FundingRequestStatusCode.Executed);
+        emit FundingRequestExecuted(fundingId);
         return true;
     }
 
@@ -195,11 +227,11 @@ contract Fundable is Compliant {
         string memory instructions;
         FundingRequestStatusCode status;
         (index, walletToFund, requester, amount, instructions, status) = retrieveFundingData(fundingId);
-        _setStatus(fundingId, FundingRequestStatusCode.Rejected);
+        _setFundingStatus(_getFundingIndex(fundingId), FundingRequestStatusCode.Rejected);
         if(walletToFund != requester) {
             _approveToRequestFunding(walletToFund, requester, allowanceToRequestFunding(walletToFund, requester).add(amount));
         }
-        emit FundingRequestRejected(fundingId, walletToFund, requester, reason);
+        emit FundingRequestRejected(fundingId, reason);
         return true;
     }
 
@@ -211,12 +243,28 @@ contract Fundable is Compliant {
         public view
         returns (uint256 index, address walletToFund, address requester, uint256 amount, string memory instructions, FundingRequestStatusCode status)
     {
-        index = _getIndex(fundingId);
-        walletToFund = _getWalletToFund(fundingId);
-        requester = _getRequester(fundingId);
-        amount = _getAmount(fundingId);
-        instructions = _getInstructions(fundingId);
-        status = _getStatus(fundingId);
+        index = _getFundingIndex(fundingId);
+        walletToFund = _getWalletToFund(index);
+        requester = _getFundingRequester(index);
+        amount = _getFundingAmount(index);
+        instructions = _getFundingInstructions(index);
+        status = _getFundingStatus(index);
+    }
+
+    /**
+     * @dev Function to retrieve all the information available for a particular funding request
+     * @param index The index of the funding request
+     */
+    function retrieveFundingData(uint256 index)
+        public view
+        returns (string memory fundingId, address walletToFund, address requester, uint256 amount, string memory instructions, FundingRequestStatusCode status)
+    {
+        fundingId = _getFundingID(index);
+        walletToFund = _getWalletToFund(index);
+        requester = _getFundingRequester(index);
+        amount = _getFundingAmount(index);
+        instructions = _getFundingInstructions(index);
+        status = _getFundingStatus(index);
     }
 
     /**
@@ -231,35 +279,36 @@ contract Fundable is Compliant {
 
     // Private functions
 
-    function _getIndex(string memory fundingId) private view returns (uint256) {
-        uint256 index = getUintFromMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDICES, fundingId);
-        require(index > 0, "Funding request does not exist");
-        return index;
+    function _getFundingIndex(string memory fundingId) private view fundingRequestExists(fundingId) returns (uint256) {
+        return getUintFromMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, fundingId);
     }
 
-    function _getWalletToFund(string memory fundingId) private view returns (address) {
-        return getAddressFromArray(FUNDABLE_CONTRACT_NAME, _WALLETS_TO_FUND, _getIndex(fundingId));
+    function _getFundingID(uint256 index) private view fundingRequestIndexExists(index) returns (string memory) {
+        return getStringFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, index);
     }
 
-    function _getRequester(string memory fundingId) private view returns (address) {
-        return getAddressFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_REQUESTERS, _getIndex(fundingId));
+    function _getWalletToFund(uint256 index) private view fundingRequestIndexExists(index) returns (address) {
+        return getAddressFromArray(FUNDABLE_CONTRACT_NAME, _WALLETS_TO_FUND, index);
     }
 
-    function _getAmount(string memory fundingId) private view returns (uint256) {
-        return getUintFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_AMOUNTS, _getIndex(fundingId));
+    function _getFundingRequester(uint256 index) private view fundingRequestIndexExists(index) returns (address) {
+        return getAddressFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_REQUESTERS, index);
     }
 
-    function _getInstructions(string memory fundingId) private view returns (string memory) {
-        return getStringFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_INSTRUCTIONS, _getIndex(fundingId));
+    function _getFundingAmount(uint256 index) private view fundingRequestIndexExists(index) returns (uint256) {
+        return getUintFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_AMOUNTS, index);
     }
 
-    function _getStatus(string memory fundingId) private view returns (FundingRequestStatusCode) {
-        return FundingRequestStatusCode(getUintFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_STATUS_CODES, _getIndex(fundingId)));
+    function _getFundingInstructions(uint256 index) private view fundingRequestIndexExists(index) returns (string memory) {
+        return getStringFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_INSTRUCTIONS, index);
     }
 
-    function _setStatus(string memory fundingId, FundingRequestStatusCode status) private returns (bool) {
-        setUintInArray(FUNDABLE_CONTRACT_NAME, _FUNDING_STATUS_CODES, _getIndex(fundingId), uint256(status));
-        return true;
+    function _getFundingStatus(uint256 index) private view fundingRequestIndexExists(index) returns (FundingRequestStatusCode) {
+        return FundingRequestStatusCode(getUintFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_STATUS_CODES, index));
+    }
+
+    function _setFundingStatus(uint256 index, FundingRequestStatusCode status) private fundingRequestIndexExists(index) returns (bool) {
+        return setUintInArray(FUNDABLE_CONTRACT_NAME, _FUNDING_STATUS_CODES, index, uint256(status));
     }
 
     function _getAllowanceToRequestFunding(address walletToFund, address requester) public view returns (uint){
@@ -267,18 +316,17 @@ contract Fundable is Compliant {
     }
 
     function _setAllowanceToRequestFunding(address walletToFund, address requester, uint256 value) public returns (bool){
-        setUintInDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, requester, value);
-        return true;
+        return setUintInDoubleMapping(FUNDABLE_CONTRACT_NAME, _ALLOWED_TO_REQUEST_FUNDING, walletToFund, requester, value);
     }
 
     function _approveToRequestFunding(address walletToFund, address requester, uint256 amount) private returns (bool) {
-        _setAllowanceToRequestFunding(walletToFund, requester, amount);
         emit ApprovalToRequestFunding(walletToFund, requester, amount);
-        return true;
+        return _setAllowanceToRequestFunding(walletToFund, requester, amount);
     }
 
-    function _requestFunding(string memory fundingId, address walletToFund, address requester, uint256 amount, string memory instructions)
-        private returns (bool)
+    function _createFundingRequest(string memory fundingId, address walletToFund, address requester, uint256 amount, string memory instructions)
+        private
+        returns (uint256)
     {
         pushStringToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, fundingId);
         pushAddressToArray(FUNDABLE_CONTRACT_NAME, _WALLETS_TO_FUND, walletToFund);
@@ -286,8 +334,10 @@ contract Fundable is Compliant {
         pushUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_AMOUNTS, amount);
         pushStringToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_INSTRUCTIONS, instructions);
         pushUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_STATUS_CODES, uint256(FundingRequestStatusCode.Requested));
-        emit FundingRequested(fundingId, walletToFund, requester, amount, instructions);
-        return true;
+        uint256 index = manyFundingRequests();
+        setUintInMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, fundingId, index);
+        emit FundingRequested(fundingId, walletToFund, requester, amount, instructions, index);
+        return index;
     }
 
 }
