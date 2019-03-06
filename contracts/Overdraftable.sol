@@ -1,57 +1,52 @@
 pragma solidity ^0.5;
 
-import "./RoleControlled.sol";
-import "./abstracts/AOverdraftable.sol";
+import "./Compliant.sol";
 import "./libraries/SafeMath.sol";
 
-contract Overdraftable is AOverdraftable, RoleControlled {
+/**
+ * @title Overdraftable - simple implementation of an overdraft line
+ * @dev Overdraft lines can only be drawn or restored through internal methods, i.e. to use this through inheritance with
+ * other contracts
+ */
+contract Overdraftable is Compliant {
 
     using SafeMath for uint256;
 
-    function getUnsecuredOverdraftLimit(address account) public view returns (uint256) {
-        return getUintFromMapping(OVERDRAFTABLE_CONTRACT_NAME, _UNSECURED_OVERDRAFT_LIMITS, account);
-    }
+    // Data structures (in eternal storage)
 
+    // Events
+
+    // Constructor
+
+    // Modifiers
+
+    // Interface functions
+
+    /**
+     * @notice increaseUnsecuredOverdraftLimit increases the overdraft limit for an account
+     * @param account the address of the account
+     * @param amount the amount to be added to the current overdraft limit
+     * @dev Only the CRO is allowed to do this
+     */
     function increaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) public returns (bool) {
-        uint256 oldLimit = getUnsecuredOverdraftLimit(account);
-        uint256 newLimit = oldLimit.add(amount);
-        emit UnsecuredOverdraftLimitSet(account, oldLimit, newLimit);
-        return setUintInMapping(OVERDRAFTABLE_CONTRACT_NAME, _UNSECURED_OVERDRAFT_LIMITS, account, newLimit);
+        return _increaseUnsecuredOverdraftLimit(account, amount);
     }
 
+    /**
+     * @notice decreaseUnsecuredOverdraftLimit decreases the overdraft limit for an account, assuming the drawn amount is
+     * not excessive (i.e. the drawn amount should be below the drawn amount)
+     * @param account the address of the account
+     * @param amount the amount to be substracted from the current overdraft limit
+     * @dev No check is done to see if the limit will become lower than the drawn amount. Although this may result in a
+     * margin call of some sort, the primary benefit of this is preventing the user from further drawing from the line
+     * @dev Only the CRO is allowed to do this
+     */
     function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) public returns (bool) {
-        uint256 oldLimit = getUnsecuredOverdraftLimit(account);
-        uint256 newLimit = oldLimit.sub(amount);
-        require(newLimit >= getDrawnAmount(account), "Cannot set limit below drawn amount");
-        emit UnsecuredOverdraftLimitSet(account, oldLimit, newLimit);
-        return setUintInMapping(OVERDRAFTABLE_CONTRACT_NAME, _UNSECURED_OVERDRAFT_LIMITS, account, newLimit);
+        return _decreaseUnsecuredOverdraftLimit(account, amount);
     }
 
-    function getDrawnAmount(address account) public returns (uint256) {
-        return getUintFromMapping(OVERDRAFTABLE_CONTRACT_NAME, _UNSECURED_OVERDRAFT_LIMITS, account);
-    }
+    // Internal functions
 
-    // Held amounts need to be checked in order to authorize this. So the function on top will need to check (require) and
-    // then call this.supra
-    function drawFromOverdraft(address account, uint256 amount) internal returns (bool) {
-        uint256 newAmount = getDrawnAmount(account).add(amount);
-        require(getUnsecuredOverdraftLimit(account) >= newAmount, "Not enough credit limit");
-        emit OverdraftChanged(account, getDrawnAmount(account), newAmount);
-        return setUintInMapping(OVERDRAFTABLE_CONTRACT_NAME, _OVERDRAFTS_DRAWN, account, newAmount);
-    }
-
-    function restoreOverdraft(address account, uint256 amount) internal returns (bool) {
-        uint256 newAmount = getDrawnAmount(account).sub(amount);
-        emit OverdraftChanged(account, getDrawnAmount(account), newAmount);
-        return setUintInMapping(OVERDRAFTABLE_CONTRACT_NAME, _OVERDRAFTS_DRAWN, account, newAmount);
-    }
-
-    function setCRO(address account) onlyRole(CRO_ROLE) public returns (bool) {
-        return addRole(account, CRO_ROLE);
-    }
-
-    function revokeCRO(address account) onlyRole(CRO_ROLE) public returns (bool) {
-        return revokeRole(account, CRO_ROLE);
-    }
+    // Private functions    
 
 }

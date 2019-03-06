@@ -1,12 +1,12 @@
 pragma solidity ^0.5;
 
-import "../../EternalStorage/contracts/EternalStorageUintArray.sol";
-import "../../EternalStorage/contracts/EternalStorageAddressArray.sol";
-import "../../EternalStorage/contracts/EternalStorageStringArray.sol";
-import "../../EternalStorage/contracts/EternalStorageAllAddressMappings.sol";
-import "../../EternalStorage/contracts/EternalStorageAllStringMappings.sol";
-import "../../EternalStorage/contracts/EternalStorageBoolDoubleMapping.sol";
-import "../../EternalStorage/contracts/EternalStorageUintDoubleMapping.sol";
+import "../../EternalStorage/contracts/wrappers/EternalStorageUintArray.sol";
+import "../../EternalStorage/contracts/wrappers/EternalStorageAddressArray.sol";
+import "../../EternalStorage/contracts/wrappers/EternalStorageStringArray.sol";
+import "../../EternalStorage/contracts/wrappers/EternalStorageAllAddressMappings.sol";
+import "../../EternalStorage/contracts/wrappers/EternalStorageAllStringMappings.sol";
+import "../../EternalStorage/contracts/wrappers/EternalStorageBoolDoubleMapping.sol";
+import "../../EternalStorage/contracts/wrappers/EternalStorageUintDoubleMapping.sol";
 
 /**
  * @title EternalStorageWrapper
@@ -18,7 +18,7 @@ import "../../EternalStorage/contracts/EternalStorageUintDoubleMapping.sol";
  * @dev The wrapper needs to be connected to the EternalStorage instance to start operating normally. The correct
  * sequence is:
  * 1. Instantiate EternalStorage and the contract inheriting the EternalStorageWrapper
- * 2. Call the connectContract() method in EternalStorage to whitelist the wrapper)
+ * 2. Call the connectContract() method in EternalStorage to whitelist the wrapper
  * 3. Call the setEternalStorage() method in EternalStorageWrapper to connect to the storage. Note that this will
  *    fail if the wrapper is not previously whitelisted
  */
@@ -31,5 +31,19 @@ contract EternalStorageWrapper is
     EternalStorageBoolDoubleMapping,
     EternalStorageUintDoubleMapping
 {
+
+    // Data structures (in eternal storage)
+
+    // Events
+
+    // Constructor
+
+    // Modifiers
+
+    // Interface functions
+
+    // Internal functions
+    
+    // Private functions
 
 }
