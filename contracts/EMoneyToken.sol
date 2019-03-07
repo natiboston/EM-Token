@@ -8,13 +8,7 @@ import "./Clearable.sol";
 import "./Fundable.sol";
 import "./Payoutable.sol";
 
-    // Data structures (in eternal storage)
-    // Events
-    // Constructor
-    // Modifiers
-    // Interface functions
-    // Internal functions
-    // Private functions
+// TO DO: add events in either layer
 
 contract EMoneyToken is IEMoneyToken, ERC20, Holdable, Overdraftable, Clearable, Fundable, Payoutable {
 

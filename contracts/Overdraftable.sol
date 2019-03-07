@@ -23,12 +23,28 @@ contract Overdraftable is Compliant {
     // Interface functions
 
     /**
+     * @notice unsecuredOverdraftLimit returns the unsecured overdraft limit for an account
+     * @param account the address of the account
+     */
+    function unsecuredOverdraftLimit(address account) external view returns (uint256) {
+        return _unsecuredOverdraftLimit(account);
+    }
+
+    /**
+     * @notice drawnAmount returns the amount drawn from the overdraft line
+     * @param account the address of the account
+     */
+    function drawnAmount(address account) external view returns (uint256) {
+        return _drawnAmount(account);
+    }
+
+    /**
      * @notice increaseUnsecuredOverdraftLimit increases the overdraft limit for an account
      * @param account the address of the account
      * @param amount the amount to be added to the current overdraft limit
      * @dev Only the CRO is allowed to do this
      */
-    function increaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) public returns (bool) {
+    function increaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) external returns (bool) {
         return _increaseUnsecuredOverdraftLimit(account, amount);
     }
 
@@ -41,7 +57,7 @@ contract Overdraftable is Compliant {
      * margin call of some sort, the primary benefit of this is preventing the user from further drawing from the line
      * @dev Only the CRO is allowed to do this
      */
-    function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) public returns (bool) {
+    function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) external returns (bool) {
         return _decreaseUnsecuredOverdraftLimit(account, amount);
     }
 

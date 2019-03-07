@@ -34,7 +34,8 @@ contract ERC20Ledger is EternalStorageWrapper {
 
     // Events
     
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event BalanceIncrease(address indexed account, uint256 value);
+    event BalanceDecrease(address indexed account, uint256 value);
 
     // Constructor
 
@@ -45,58 +46,28 @@ contract ERC20Ledger is EternalStorageWrapper {
         _;
     }
 
-    // Interface functions
-    
-    /**
-    * @dev Total number of tokens in existence
-    */
-    function totalSupply() public view returns (uint256) {
-        return _getTotalSupply();
-    }
-
-    /**
-    * @dev Gets the balance of the specified address.
-    * @param owner The address to query the balance of.
-    * @return An uint256 representing the amount owned by the passed address.
-    */
-    function balanceOf(address owner) public view returns (uint256) {
-        return _getBalance(owner);
-    }
-
-    /**
-     * @dev Function to check the amount of tokens that an owner allowed to a spender.
-     * @param owner address The address which owns the funds.
-     * @param spender address The address which will spend the funds.
-     * @return A uint256 specifying the amount of tokens still available for the spender.
-     */
-    function allowance(address owner, address spender) external view returns (uint256) {
-        return _getAllowance(owner, spender);
-    }
-
     // Internal functions
 
     function _approve(address allower, address spender, uint256 value) internal notAddressZero(spender) returns (bool) {
-        emit Approval(allower, spender, value);
         return _setAllowance(allower, spender, value);
     }
 
     function _increaseAllowance(address allower, address spender, uint256 addedValue) internal notAddressZero(spender) returns (bool) {
         uint256 newAllowance = _getAllowance(allower, spender).add(addedValue);
-        emit Approval(allower, spender, newAllowance);
         return _setAllowance(allower, spender, newAllowance);
     }
 
     function _decreaseAllowance(address allower, address spender, uint256 subtractedValue) internal notAddressZero(spender) returns (bool) {
         uint256 newAllowance = _getAllowance(allower, spender).sub(subtractedValue);
-        emit Approval(allower, spender, newAllowance);
         return _setAllowance(allower, spender, newAllowance);
     }
 
-    function _addBalance(address account, uint256 value) internal returns (bool) {
+    function _increaseBalance(address account, uint256 value) internal returns (bool) {
         uint256 newBalance = _getBalance(account).add(value);
         uint256 newTotalSupply = _getTotalSupply().add(value);
         bool r1 = _setBalance(account, newBalance);
         bool r2 = _setTotalSupply(newTotalSupply);
+        emit BalanceIncrease(account, value);
         return r1 && r2;
     }
 
@@ -105,7 +76,20 @@ contract ERC20Ledger is EternalStorageWrapper {
         uint256 newTotalSupply = _getTotalSupply().sub(value);
         bool r1 = _setBalance(account, newBalance);
         bool r2 = _setTotalSupply(newTotalSupply);
+        emit BalanceDecrease(account, value);
         return r1 && r2;
+    }
+
+    function _totalSupply() internal view returns (uint256) {
+        return _getTotalSupply();
+    }
+
+    function _balanceOf(address owner) internal view returns (uint256) {
+        return _getBalance(owner);
+    }
+
+    function _allowance(address owner, address spender) internal view returns (uint256) {
+        return _getAllowance(owner, spender);
     }
 
     // Private functions

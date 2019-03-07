@@ -32,20 +32,16 @@ contract OverdraftsLedger is EternalStorageWrapper {
     // Events
 
     event UnsecuredOverdraftLimitSet(address indexed account, uint256 oldLimit, uint256 newLimit);
-    event SecuredOverdraftLimitSet(address indexed account, uint256 oldLimit, uint256 newLimit);
-    event OverdraftChanged(address indexed account, uint256 oldAmount, uint256 newAmount);
+    event OverdraftDrawn(address indexed account, uint256 amount);
+    event OverdraftRestored(address indexed account, uint256 amount);
 
     // Constructor
 
     // Modifiers
 
-    // Interface functions
+    // Internal functions
 
-    /**
-     * @notice getUnsecuredOverdraftLimit returns the unsecured overdraft limit for an account
-     * @param account the address of the account
-     */
-    function getUnsecuredOverdraftLimit(address account) public view returns (uint256) {
+    function _unsecuredOverdraftLimit(address account) internal view returns (uint256) {
         return _getUnsecuredOverdraftLimit(account);
     }
 
@@ -53,14 +49,12 @@ contract OverdraftsLedger is EternalStorageWrapper {
      * @notice getDrawnAmount returns the amount drawn from the overdraft line
      * @param account the address of the account
      */
-    function getDrawnAmount(address account) public view returns (uint256) {
-        return _getDrawnAmounts(account);
+    function _drawnAmount(address account) internal view returns (uint256) {
+        return _getDrawnAmount(account);
     }
 
-    // Internal functions
-
     function _increaseUnsecuredOverdraftLimit(address account, uint256 amount) internal returns (bool) {
-        uint256 oldLimit = getUnsecuredOverdraftLimit(account);
+        uint256 oldLimit = _getUnsecuredOverdraftLimit(account);
         uint256 newLimit = oldLimit.add(amount);
         emit UnsecuredOverdraftLimitSet(account, oldLimit, newLimit);
         return _setUnsecuredOverdraftLimit(account, newLimit);
@@ -71,21 +65,25 @@ contract OverdraftsLedger is EternalStorageWrapper {
      * margin call of some sort, the primary benefit of this is preventing the user from further drawing from the line
      */
     function _decreaseUnsecuredOverdraftLimit(address account, uint256 amount) internal returns (bool) {
-        uint256 oldLimit = getUnsecuredOverdraftLimit(account);
+        uint256 oldLimit = _getUnsecuredOverdraftLimit(account);
         uint256 newLimit = oldLimit.sub(amount);
         emit UnsecuredOverdraftLimitSet(account, oldLimit, newLimit);
         return _setUnsecuredOverdraftLimit(account, newLimit);
     }
 
+    /**
+     * @dev Overdraft can only be drawn if limit is available
+     */
     function _drawFromOverdraft(address account, uint256 amount) internal returns (bool) {
-        uint256 newAmount = getDrawnAmount(account).add(amount);
-        emit OverdraftChanged(account, getDrawnAmount(account), newAmount);
+        uint256 newAmount = _getDrawnAmount(account).add(amount);
+        require(newAmount <= _getUnsecuredOverdraftLimit(account), "Not enough credit");
+        emit OverdraftDrawn(account, amount);
         return _setDrawnAmounts(account, newAmount);
     }
 
     function _restoreOverdraft(address account, uint256 amount) internal returns (bool) {
-        uint256 newAmount = getDrawnAmount(account).sub(amount);
-        emit OverdraftChanged(account, getDrawnAmount(account), newAmount);
+        uint256 newAmount = _getDrawnAmount(account).sub(amount);
+        emit OverdraftRestored(account, amount);
         return _setDrawnAmounts(account, newAmount);
     }
 
@@ -99,7 +97,7 @@ contract OverdraftsLedger is EternalStorageWrapper {
         return setUintInMapping(OVERDRAFTSLEDGER_CONTRACT_NAME, _UNSECURED_OVERDRAFT_LIMITS, account, value);
     }
 
-    function _getDrawnAmounts(address account) private view returns (uint256) {
+    function _getDrawnAmount(address account) private view returns (uint256) {
         return getUintFromMapping(OVERDRAFTSLEDGER_CONTRACT_NAME, _DRAWN_AMOUNTS, account);
     }
 
