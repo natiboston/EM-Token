@@ -43,6 +43,12 @@ contract RoleControl is EternalStorageWrapper {
      */
     bytes32 constant public COMPLIANCE_ROLE = "operator";
 
+    /**
+     * @notice HOLDER_ROLE is the role for actors or (normally) contracts that can perform holds
+     * on available balances
+     */
+    bytes32 constant public HOLDER_ROLE = "operator";
+
     // Data structures (in eternal storage)
 
     bytes32 constant private ROLECONTROLLED_CONTRACT_NAME = "RoleControlled";

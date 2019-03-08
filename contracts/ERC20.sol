@@ -12,11 +12,7 @@ contract ERC20 is Compliant {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
-    // Constructor
-
-    // Modifiers
-
-    // Interface functions
+    // External state-modifying functions
 
     /**
     * @dev Transfer token for a specified address
@@ -24,6 +20,7 @@ contract ERC20 is Compliant {
     * @param value The amount to be transferred.
     */
     function transfer(address to, uint256 value) external returns (bool) {
+        _check(checkTransfer, msg.sender, to, value);
         return _transfer(msg.sender, to, value);
     }
 
@@ -37,7 +34,30 @@ contract ERC20 is Compliant {
      * @param value The amount of tokens to be spent.
      */
     function approve(address spender, uint256 value) external returns (bool) {
+        _check(checkApprove, msg.sender, spender, value);
         _approve(msg.sender, spender, value);
+        return true;
+    }
+
+    /**
+     * @dev Method to increase approval
+     * @param spender The address which will spend the funds.
+     * @param value The amount of tokens to be spent.
+     */
+    function increaseApproval(address spender, uint256 value) external returns (bool) {
+        _check(checkApprove, msg.sender, spender, _allowance(msg.sender, spender).add(value));
+        _approve(msg.sender, spender, _allowance(msg.sender, spender).add(value));
+        return true;
+    }
+
+    /**
+     * @dev Method to decrease approval
+     * @param spender The address which will spend the funds.
+     * @param value The amount of tokens to be spent.
+     */
+    function decreaseApproval(address spender, uint256 value) external returns (bool) {
+        _check(checkApprove, msg.sender, spender, _allowance(msg.sender, spender).sub(value));
+        _approve(msg.sender, spender, _allowance(msg.sender, spender).sub(value));
         return true;
     }
 
@@ -50,9 +70,12 @@ contract ERC20 is Compliant {
      * @param value uint256 the amount of tokens to be transferred
      */
     function transferFrom(address from, address to, uint256 value) external returns (bool) {
-        _decreaseAllowance(from, msg.sender, value);
+        _check(checkTransfer, from, to, value);
+        _approve(from, msg.sender, _allowance(from, msg.sender).sub(value));
         return _transfer(msg.sender, to, value);
     }
+
+    // External view functions
 
     /**
     * @dev Total number of tokens in existence

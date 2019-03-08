@@ -12,6 +12,32 @@ contract Holdable is Compliant {
     // Internal functions
     // Private functions
 
+    // External state-modifying functions
+
+    function hold(
+        string calldata holdId,
+        address payer,
+        address payee,
+        address notary,
+        uint256 amount,
+        uint256 expiration
+    )
+        external
+        onlyRole(HOLDER_ROLE)
+        returns (uint256 index)
+    {
+        // _check(blah blah);
+        uint256 availableFunds =
+            _balanceOf(payer)
+            .add(_unsecuredOverdraftLimit(payer))
+            .sub(_drawnAmount(payer))
+            .sub(_balanceOnHold(payer));
+        require(amount >= availableFunds, "Not enough funds to hold");
+        return _createHold(holdId, msg.sender, payer, payee, notary, amount, expiration);
+    }
+    
+    // External view functions
+
     /**
      * @dev Function to retrieve all the information available for a particular hold
      * @param holdId The ID of the hold

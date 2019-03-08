@@ -37,8 +37,6 @@ contract ERC20Ledger is EternalStorageWrapper {
     event BalanceIncrease(address indexed account, uint256 value);
     event BalanceDecrease(address indexed account, uint256 value);
 
-    // Constructor
-
     // Modifiers
 
     modifier notAddressZero(address who) {
@@ -50,16 +48,6 @@ contract ERC20Ledger is EternalStorageWrapper {
 
     function _approve(address allower, address spender, uint256 value) internal notAddressZero(spender) returns (bool) {
         return _setAllowance(allower, spender, value);
-    }
-
-    function _increaseAllowance(address allower, address spender, uint256 addedValue) internal notAddressZero(spender) returns (bool) {
-        uint256 newAllowance = _getAllowance(allower, spender).add(addedValue);
-        return _setAllowance(allower, spender, newAllowance);
-    }
-
-    function _decreaseAllowance(address allower, address spender, uint256 subtractedValue) internal notAddressZero(spender) returns (bool) {
-        uint256 newAllowance = _getAllowance(allower, spender).sub(subtractedValue);
-        return _setAllowance(allower, spender, newAllowance);
     }
 
     function _increaseBalance(address account, uint256 value) internal returns (bool) {

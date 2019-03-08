@@ -37,6 +37,12 @@ class Payoutable {
 class Compliant {
 }
 
+class WhiteListed {
+}
+
+class RoleControl {
+}
+
 class ERC20Ledger {
 }
 
@@ -44,9 +50,6 @@ class HoldsLedger {
 }
 
 class OverdraftsLedger {
-}
-
-class RoleControl {
 }
 
 class EternalStorageWrapper {
@@ -69,10 +72,13 @@ Clearable <|-- Compliant
 Fundable <|-- Compliant
 Payoutable <|-- Compliant
 
+Compliant <|-- WhiteListed
+WhiteListed <|-- RoleControl
+
 Compliant <|-- ERC20Ledger
 Compliant <|-- HoldsLedger
 Compliant <|-- OverdraftsLedger
-Compliant <|-- RoleControl
+
 
 ERC20Ledger <|-- EternalStorageWrapper
 HoldsLedger <|-- EternalStorageWrapper

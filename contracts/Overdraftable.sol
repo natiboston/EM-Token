@@ -20,23 +20,7 @@ contract Overdraftable is Compliant {
 
     // Modifiers
 
-    // Interface functions
-
-    /**
-     * @notice unsecuredOverdraftLimit returns the unsecured overdraft limit for an account
-     * @param account the address of the account
-     */
-    function unsecuredOverdraftLimit(address account) external view returns (uint256) {
-        return _unsecuredOverdraftLimit(account);
-    }
-
-    /**
-     * @notice drawnAmount returns the amount drawn from the overdraft line
-     * @param account the address of the account
-     */
-    function drawnAmount(address account) external view returns (uint256) {
-        return _drawnAmount(account);
-    }
+    // External state-modfying functions
 
     /**
      * @notice increaseUnsecuredOverdraftLimit increases the overdraft limit for an account
@@ -59,6 +43,24 @@ contract Overdraftable is Compliant {
      */
     function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) external returns (bool) {
         return _decreaseUnsecuredOverdraftLimit(account, amount);
+    }
+
+    // External view functions
+    
+    /**
+     * @notice unsecuredOverdraftLimit returns the unsecured overdraft limit for an account
+     * @param account the address of the account
+     */
+    function unsecuredOverdraftLimit(address account) external view returns (uint256) {
+        return _unsecuredOverdraftLimit(account);
+    }
+
+    /**
+     * @notice drawnAmount returns the amount drawn from the overdraft line
+     * @param account the address of the account
+     */
+    function drawnAmount(address account) external view returns (uint256) {
+        return _drawnAmount(account);
     }
 
     // Internal functions

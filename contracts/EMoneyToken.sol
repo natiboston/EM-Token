@@ -8,8 +8,6 @@ import "./Clearable.sol";
 import "./Fundable.sol";
 import "./Payoutable.sol";
 
-// TO DO: add events in either layer
-
 contract EMoneyToken is IEMoneyToken, ERC20, Holdable, Overdraftable, Clearable, Fundable, Payoutable {
 
     // Data structures (in eternal storage)
