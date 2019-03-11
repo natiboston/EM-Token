@@ -8,6 +8,11 @@ import "./Clearable.sol";
 import "./Fundable.sol";
 import "./Payoutable.sol";
 
+/**
+ * @title EMoneyToken - a token to implement compliant electronic money
+ * @dev Inheritance diagram here
+ * @dev This implements the EM-Token standard, defined in the IEMoneyToken interface
+ */
 contract EMoneyToken is IEMoneyToken, ERC20, Holdable, Overdraftable, Clearable, Fundable, Payoutable {
 
     // Data structures (in eternal storage)

@@ -3,7 +3,14 @@ pragma solidity ^0.5;
 import "./RoleControl.sol";
 
 
+/**
+ * @title Whitelistable
+ * @dev The Whitelistable contract implements a simple whitelisting mechanism that can be used upstream to
+ * ensure that only whitelisted wallets are allowed to transact
+ */
 contract Whitelistable is RoleControl {
+
+    address constant SUSPENSE_WALLET = address(0);
 
 // Data structures (in eternal storage)
 
@@ -12,7 +19,7 @@ contract Whitelistable is RoleControl {
     /**
      * @dev Data structures
      * @dev _WHITELIST_ARRAY : address array with the addresses of the whitelisted wallets
-     * @dev _WHITELIST_INDICES : mapping (address => uint) with the indices of the whitelisted wallets
+     * @dev _WHITELIST_MAPPING : mapping (address => uint) with the indices of the whitelisted wallets
      */
     bytes32 constant private _WHITELIST_ARRAY = "_whitelistArray";
     bytes32 constant private _WHITELIST_MAPPING = "_whitelistMapping";
@@ -23,6 +30,10 @@ contract Whitelistable is RoleControl {
     event UnWhitelisted(address who);
 
 // Constructor
+
+    constructor() internal {
+        _pushAddressToWhitelist(SUSPENSE_WALLET);
+    }
 
 // Modifiers
 
@@ -65,8 +76,9 @@ contract Whitelistable is RoleControl {
      * @dev (0 is for address(0), otherwise the wallet is not declared)
      * @param who address The address to obtain the corresponding wallet
      */
-    function indexInWhitelist(address who) external view returns (uint256) {
-        return _getWhitelistedIndex(who);
+    function indexInWhitelist(address who) external view returns (uint256 index) {
+        index = _getWhitelistedIndex(who);
+        require(index > 0, "Address is not whitelisted");
     }
 
     /**
@@ -102,6 +114,7 @@ contract Whitelistable is RoleControl {
 
     function _deleteAddressFromWhitelist(address who) private returns (bool) {
         uint256 index = _getWhitelistedIndex(who);
+        require(index > 0, "Address is not whitelisted");
         return
             deleteAddressFromArray(WHITELISTABLE_CONTRACT_NAME, _WHITELIST_ARRAY, index) &&
             deleteAddressFromMapping(WHITELISTABLE_CONTRACT_NAME, _WHITELIST_MAPPING, who);
@@ -113,7 +126,6 @@ contract Whitelistable is RoleControl {
 
     function _getWhitelistedIndex(address who) private view returns (uint256 index) {
         index = getUintFromMapping(WHITELISTABLE_CONTRACT_NAME, _WHITELIST_MAPPING, who);
-        require(index > 0, "Address is not whitelisted");
     }
 
     function _getNumberOfWhitelistedWallets() private view returns (uint256) {

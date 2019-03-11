@@ -1,8 +1,6 @@
 pragma solidity ^0.5;
 
-import "./ERC20Ledger.sol";
-import "./HoldsLedger.sol";
-import "./OverdraftsLedger.sol";
+import "./ConsolidatedLedger.sol";
 import "./Whitelistable.sol";
 
 /**
@@ -14,12 +12,10 @@ import "./Whitelistable.sol";
  * order to implement permissioning logic (e.g. whitelisting flags, or cumulative cashins or cashouts to check
  * cumulative limits)
  */
-contract Compliant is ERC20Ledger, HoldsLedger, OverdraftsLedger, Whitelistable {
+contract Compliant is ConsolidatedLedger, Whitelistable {
 
     // Data structures (in eternal storage)
-    
-    uint public constant MAX_AMOUNT = 2**256 - 1;
-    
+        
     // Events
     // Constructor
     // Modifiers
@@ -27,29 +23,77 @@ contract Compliant is ERC20Ledger, HoldsLedger, OverdraftsLedger, Whitelistable 
 
     // ERC20
     
-    function checkTransfer(address from, address to, uint256 value) public view
+    function checkTransfer(address from, address to) public view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(from)) {
             reason = "Sender is not whitelisted";
         } else if(!_isWhitelisted(to)) {
             reason = "Receiver is not whitelisted";
-        } else if(value > MAX_AMOUNT) {
-            reason = "Value too big";
         } else {
             canDo = true;
         }
     }
 
-    function checkApprove(address allower, address spender, uint256 value) public view
+    function checkApprove(address allower, address spender) public view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(allower)) {
             reason = "Allower is not whitelisted";
         } else if(!_isWhitelisted(spender)) {
             reason = "Spender is not whitelisted";
-        } else if(value > MAX_AMOUNT) {
-            reason = "Amount too big";
+        } else {
+            canDo = true;
+        }
+    }
+
+    // Holdable
+
+    function checkHold(address payer, address payee) public view
+        returns (bool canDo, string memory reason)
+    {
+        if(!_isWhitelisted(payer)) {
+            reason = "Payer is not whitelisted";
+        } else if(!_isWhitelisted(payee)) {
+            reason = "Payee is not whitelisted";
+        } else {
+            canDo = true;
+        }
+    }
+
+    function checkApproveToHold(address payer, address holder) public view
+        returns (bool canDo, string memory reason)
+    {
+        if(!_isWhitelisted(payer)) {
+            reason = "Payer is not whitelisted";
+        } else if(!_isWhitelisted(holder)) {
+            reason = "Holder is not whitelisted";
+        } else {
+            canDo = true;
+        }
+    }
+
+    // Clearable
+    
+    function checkApproveToRequestClearedTransfer(address walletToDebit, address requester) public view
+        returns (bool canDo, string memory reason)
+    {
+        if(!_isWhitelisted(walletToDebit)) {
+            reason = "Wallet to debit not whitelisted";
+        } else if(!_isWhitelisted(requester)) {
+            reason = "Requester not whitelisted";
+        } else {
+            canDo = true;
+        }
+    }
+
+    function checkRequestClearedTransfer(address walletToDebit, address requester) public view
+        returns (bool canDo, string memory reason)
+    {
+        if(!_isWhitelisted(walletToDebit)) {
+            reason = "Wallet to debit not whitelisted";
+        } else if(!_isWhitelisted(requester)) {
+            reason = "Requester not whitelisted";
         } else {
             canDo = true;
         }
@@ -57,27 +101,51 @@ contract Compliant is ERC20Ledger, HoldsLedger, OverdraftsLedger, Whitelistable 
 
     // Fundable
     
-    function checkApproveToRequestFunding(address walletToFund, address requester, uint256 amount) public view
+    function checkApproveToRequestFunding(address walletToFund, address requester) public view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(walletToFund)) {
             reason = "Wallet to fund not whitelisted";
         } else if(!_isWhitelisted(requester)) {
             reason = "Requester not whitelisted";
-        } else if(amount > MAX_AMOUNT) {
-            reason = "Amount too big";
-        } else{
+        } else {
             canDo = true;
         }
     }
 
-    function checkRequestFunding(address requester, uint256 amount) public view
+    function checkRequestFunding(address walletToFund, address requester) public view
         returns (bool canDo, string memory reason)
     {
-        if(!_isWhitelisted(requester)) {
+        if(!_isWhitelisted(walletToFund)) {
+            reason = "Wallet to fund not whitelisted";
+        } else if(!_isWhitelisted(requester)) {
             reason = "Requester not whitelisted";
-        } else if(amount > MAX_AMOUNT) {
-            reason = "Amount too big";
+        } else {
+            canDo = true;
+        }
+    }
+
+    // Payoutable
+    
+    function checkApproveToRequestPayout(address walletToDebit, address requester) public view
+        returns (bool canDo, string memory reason)
+    {
+        if(!_isWhitelisted(walletToDebit)) {
+            reason = "Wallet to debit not whitelisted";
+        } else if(!_isWhitelisted(requester)) {
+            reason = "Requester not whitelisted";
+        } else {
+            canDo = true;
+        }
+    }
+
+    function checkRequestPayout(address walletToDebit, address requester) public view
+        returns (bool canDo, string memory reason)
+    {
+        if(!_isWhitelisted(walletToDebit)) {
+            reason = "Wallet to debit not whitelisted";
+        } else if(!_isWhitelisted(requester)) {
+            reason = "Requester not whitelisted";
         } else {
             canDo = true;
         }
@@ -89,17 +157,17 @@ contract Compliant is ERC20Ledger, HoldsLedger, OverdraftsLedger, Whitelistable 
         require(test, "Check failed");
     }
 
-    function _check(function(address, address, uint256) returns (bool, string memory) checkFunction, address a, address b, uint256 c) internal {
-        bool test;
-        string memory reason;
-        (test, reason) = checkFunction(a, b, c);
-        require(test, reason);
-    }
-
-    function _check(function(address, uint256) returns (bool, string memory) checkFunction, address a, uint256 b) internal {
+    function _check(function(address, address) returns (bool, string memory) checkFunction, address a, address b) internal {
         bool test;
         string memory reason;
         (test, reason) = checkFunction(a, b);
+        require(test, reason);
+    }
+
+    function _check(function(address) returns (bool, string memory) checkFunction, address a) internal {
+        bool test;
+        string memory reason;
+        (test, reason) = checkFunction(a);
         require(test, reason);
     }
 

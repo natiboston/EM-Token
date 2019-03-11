@@ -41,17 +41,11 @@ contract RoleControl is EternalStorageWrapper {
      * @notice COMPLIANCE_ROLE is the predefined role with rights to whitelist address, e.g. after checking
      * KYC status
      */
-    bytes32 constant public COMPLIANCE_ROLE = "operator";
-
-    /**
-     * @notice HOLDER_ROLE is the role for actors or (normally) contracts that can perform holds
-     * on available balances
-     */
-    bytes32 constant public HOLDER_ROLE = "operator";
+    bytes32 constant public COMPLIANCE_ROLE = "compliance";
 
     // Data structures (in eternal storage)
 
-    bytes32 constant private ROLECONTROLLED_CONTRACT_NAME = "RoleControlled";
+    bytes32 constant private ROLECONTROL_CONTRACT_NAME = "RoleControl";
 
     /**
      * @dev Data structures
@@ -85,7 +79,7 @@ contract RoleControl is EternalStorageWrapper {
      * @param role The role being checked
      */
     function hasRole(address account, bytes32 role) public view returns (bool) {
-        return getBoolFromDoubleMapping(ROLECONTROLLED_CONTRACT_NAME, _ROLES, role, account);
+        return getBoolFromDoubleMapping(ROLECONTROL_CONTRACT_NAME, _ROLES, role, account);
     }
 
     /**
@@ -138,12 +132,12 @@ contract RoleControl is EternalStorageWrapper {
 
     function _addRole(address _account, bytes32 role) private returns (bool) {
         emit RoleAdded(_account, role);
-        return setBoolInDoubleMapping(ROLECONTROLLED_CONTRACT_NAME, _ROLES, role, _account, true);
+        return setBoolInDoubleMapping(ROLECONTROL_CONTRACT_NAME, _ROLES, role, _account, true);
     }
 
     function _removeRole(address account, bytes32 role) private returns (bool) {
         emit RoleRemoved(account, role);
-        return deleteBoolFromDoubleMapping(ROLECONTROLLED_CONTRACT_NAME, _ROLES, role, account);
+        return deleteBoolFromDoubleMapping(ROLECONTROL_CONTRACT_NAME, _ROLES, role, account);
     }
 
 }

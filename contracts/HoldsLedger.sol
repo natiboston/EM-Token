@@ -9,7 +9,15 @@ contract HoldsLedger is EternalStorageWrapper {
 
     // Data structures (in eternal storage)
 
-    enum HoldStatusCode { Nonexistent, Created, Executed, ReleasedByNotary, ReleasedByPayee, ReleasedByOwner, ReleasedDueToExpiration }
+    enum HoldStatusCode {
+        Nonexistent,
+        Created,
+        ExecutedByNotary,
+        ExecutedByOperator,
+        ReleasedByNotary,
+        ReleasedByOperator,
+        ReleasedDueToExpiration
+    }
 
     bytes32 constant private HOLDSLEDGER_CONTRACT_NAME = "HoldsLedger";
 
@@ -53,9 +61,9 @@ contract HoldsLedger is EternalStorageWrapper {
         uint256 index
     ); // By issuer (which can be the payer as well)
 
-    event HoldExecuted(address issuer, string indexed holdId); // By notary
+    event HoldExecuted(address issuer, string indexed holdId, HoldStatusCode status); // By notary or by operator
 
-    event HoldReleased(address issuer, string indexed holdId, HoldStatusCode status); // By issuer, by notary, by payee, or due to expiration
+    event HoldReleased(address issuer, string indexed holdId, HoldStatusCode status); // By issuer), by notary, or due to expiration
 
     event HoldRenewed(address issuer, string indexed holdId, uint256 oldExpiration, uint256 newExpiration); // By issuer
 
@@ -87,11 +95,12 @@ contract HoldsLedger is EternalStorageWrapper {
         address payee,
         address notary,
         uint256 amount,
-        uint256 expiration
+        uint256 timeToExpiration
     )
         internal
         returns (uint256 index)
     {
+        uint256 expiration = block.timestamp.add(timeToExpiration);
         index = _pushNewHold(issuer, holdId, payer, payee, notary, amount, expiration);
         _addBalanceOnHold(payer, amount);
         emit HoldCreated(issuer, holdId, payer, payee, notary, amount, expiration, index);
@@ -99,8 +108,8 @@ contract HoldsLedger is EternalStorageWrapper {
 
     function _finalizeHold(address issuer, string memory holdId, HoldStatusCode status) internal returns (bool) {
         require(_getHoldStatus(_getHoldIndex(issuer, holdId)) == HoldStatusCode.Created, "Hold status should be 'created'");
-        if(status == HoldStatusCode.Executed)
-            emit HoldExecuted(issuer, holdId);
+        if(status == HoldStatusCode.ExecutedByNotary || status == HoldStatusCode.ExecutedByOperator)
+            emit HoldExecuted(issuer, holdId, status);
         else
             emit HoldReleased(issuer, holdId, status);
         address payer = _getHoldPayer(_getHoldIndex(issuer, holdId));

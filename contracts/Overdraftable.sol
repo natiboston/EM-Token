@@ -50,6 +50,7 @@ contract Overdraftable is Compliant {
     /**
      * @notice unsecuredOverdraftLimit returns the unsecured overdraft limit for an account
      * @param account the address of the account
+     * @return The limit of the overdraft line
      */
     function unsecuredOverdraftLimit(address account) external view returns (uint256) {
         return _unsecuredOverdraftLimit(account);
@@ -58,6 +59,7 @@ contract Overdraftable is Compliant {
     /**
      * @notice drawnAmount returns the amount drawn from the overdraft line
      * @param account the address of the account
+     * @return The amount already drawn from the overdraft line
      */
     function drawnAmount(address account) external view returns (uint256) {
         return _drawnAmount(account);
