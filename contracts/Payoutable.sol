@@ -22,9 +22,9 @@ contract Payoutable is Compliant {
 
     /**
      * @dev Data structures (implemented in the eternal storage):
+     * @dev _PAYOUT_REQUESTERS : address array with the addresses of the requesters of the payouts
      * @dev _PAYOUT_IDS : string array with payout IDs
      * @dev _WALLETS_TO_DEBIT : address array with the addresses from which the funds should be taken
-     * @dev _PAYOUT_REQUESTERS : address array with the addresses of the requesters of the payouts
      * @dev _PAYOUT_AMOUNTS : uint256 array with the payout amounts being requested
      * @dev _PAYOUT_INSTRUCTIONS : string array with the payout instructions (e.g. a reference to the bank account
      * to transfer the money to)
@@ -91,13 +91,9 @@ contract Payoutable is Compliant {
         _;
     }
 
-    modifier payoutRequestNotClosed(address requester, string memory transactionId) {
+    modifier payoutRequestInProcess(address requester, string memory transactionId) {
         uint256 index = _getPayoutIndex(requester, transactionId);
-        PayoutRequestStatusCode status = _getPayoutStatus(index);
-        require(
-            status == PayoutRequestStatusCode.Requested || status == PayoutRequestStatusCode.InProcess,
-            "Payout request not in process"
-        );
+        require(_getPayoutStatus(index) == PayoutRequestStatusCode.InProcess, "Payout request is not in process");
         _;
     }
 
@@ -157,7 +153,6 @@ contract Payoutable is Compliant {
     {
         address requester = msg.sender;
         _check(checkRequestPayout, walletToDebit, requester, amount);
-        require(_isApprovedToRequestPayout(walletToDebit, requester), "Not approved to request payout");
         index = _createPayoutRequest(requester, transactionId, walletToDebit, amount, instructions);
     }
 
@@ -168,7 +163,7 @@ contract Payoutable is Compliant {
      * @dev Only the original requester can actually cancel an outstanding request
      */
     function cancelPayoutRequest(string calldata transactionId) external
-        payoutRequestNotClosed(msg.sender, transactionId)
+        payoutRequestJustCreated(msg.sender, transactionId)
         returns (bool)
     {
         address requester = msg.sender;
@@ -184,9 +179,10 @@ contract Payoutable is Compliant {
      * it sets the status to "InProcess", which then prevents the requester from being able to cancel the payout
      * request. It also moves the funds to a suspense wallet, so the funds are locked until the payout request is
      * resolved. This method is inteded to be called by the operator to "lock" the payout request while the internal
-     * transfers etc are done by the bank (offchain). It is not required though to call this method before
-     * actually executing or rejecting the request, since the operator can call the executePayoutRequest or the
-     * rejectPayoutRequest directly, if desired.
+     * transfers etc are done by the bank (offchain). It is required to call this method before actually executing
+     * the request, since the operator cannot call executePayoutRequest directly. However the operator can reject the
+     * request either after it is created or after it has started to be processed. In this last case the funds will be
+     * returned from the suspense wallet to the payer
      * @param requester The requester of the payout request
      * @param transactionId The ID of the payout request, which can then be used to index all the information about
      * the payout request (together with the address of the sender)
@@ -217,10 +213,11 @@ contract Payoutable is Compliant {
      * @param transactionId The ID of the payout request, which can then be used to index all the information about
      * the payout request (together with the address of the sender)
      * @dev Only operator can do this
+     * @dev The payout request needs to be InProcess in order to be able to be executed
      * 
      */
     function executePayoutRequest(address requester, string calldata transactionId) external
-        payoutRequestNotClosed(requester, transactionId)
+        payoutRequestInProcess(requester, transactionId)
         onlyRole(OPERATOR_ROLE)
         returns (bool)
     {
@@ -242,14 +239,21 @@ contract Payoutable is Compliant {
      * 
      */
     function rejectPayoutRequest(address requester, string calldata transactionId, string calldata reason) external
-        payoutRequestNotClosed(requester, transactionId)
         onlyRole(OPERATOR_ROLE)
         returns (bool)
     {
         uint256 index = _getPayoutIndex(requester, transactionId);
         address walletToDebit = _getWalletToDebit(index);
         uint256 amount = _getPayoutAmount(index);
-        _addFunds(walletToDebit, amount);
+        PayoutRequestStatusCode status = _getPayoutStatus(index);
+        if(status == PayoutRequestStatusCode.InProcess) {
+            _decreaseBalance(SUSPENSE_WALLET, amount);
+            _addFunds(walletToDebit, amount);
+        } else if(status == PayoutRequestStatusCode.Requested) {
+            _finalizeHold(requester, transactionId, HoldStatusCode.ReleasedByOperator);
+        } else {
+            require(false, "Payout request is already closed");
+        }
         emit PayoutRequestRejected(requester, transactionId, reason);
         return _setPayoutStatus(index, PayoutRequestStatusCode.Rejected);
     }
@@ -384,8 +388,9 @@ contract Payoutable is Compliant {
         payoutRequestDoesNotExist(requester, transactionId)
         returns (uint256 index)
     {
+        require(requester == walletToDebit || _isApprovedToRequestPayout(walletToDebit, requester), "Not approved to request payout");
         require(amount >= _availableFunds(walletToDebit), "Not enough funds to ask for payout");
-        _createHold(requester, transactionId, walletToDebit, SUSPENSE_WALLET, address(0), amount, false, 0);
+        _createHold(requester, transactionId, walletToDebit, SUSPENSE_WALLET, address(0), amount, false, 0); // No notary, as this is going to be managed by the methods
         pushAddressToArray(PAYOUTABLE_CONTRACT_NAME, _PAYOUT_REQUESTERS, requester);
         pushStringToArray(PAYOUTABLE_CONTRACT_NAME, _PAYOUT_IDS, transactionId);
         pushAddressToArray(PAYOUTABLE_CONTRACT_NAME, _WALLETS_TO_DEBIT, walletToDebit);

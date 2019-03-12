@@ -1,4 +1,4 @@
-pragma solidity ^0.5.2;
+pragma solidity ^0.5;
 
 /**
  * @title SafeMath
@@ -7,10 +7,12 @@ pragma solidity ^0.5.2;
 library SafeMath {
 
     int256 constant private INT256_MIN = -2**255;
+    int256 constant private INT256_MAX = 2**255 - 1;
     string constant MULTIPLICATION_OVERFLOW = "Overflow in multiply operation";
     string constant DIVISION_OVERFLOW = "Overflow in division operation";
     string constant ADDITION_OVERFLOW = "Overflow in addition operation";
     string constant SUBSTRACTION_OVERFLOW = "Overflow in substraction operation";
+    string constant CONVERSION_OVERFLOW = "Uint cannot be converted to Int (too big)";
     
     // uint256:
 
@@ -132,6 +134,14 @@ library SafeMath {
     function mod(int256 a, int256 b) internal pure returns (int256) {
         require(b > 0, DIVISION_OVERFLOW);
         return a % b;
+    }
+
+    /**
+     * @dev Converts an uint into an int, and throws if out of range
+     */
+    function toInt(uint256 a) internal pure returns (int256) {
+        require(a <= uint256(INT256_MAX), CONVERSION_OVERFLOW);
+        return(int256(a));
     }
 
 }

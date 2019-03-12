@@ -22,9 +22,9 @@ contract Fundable is Compliant {
 
     /**
      * @dev Data structures (implemented in the eternal storage):
+     * @dev _FUNDING_REQUESTERS : address array with the addresses of the requesters of the funds
      * @dev _FUNDING_IDS : string array with funding IDs
      * @dev _WALLETS_TO_FUND : address array with the addresses that should receive the funds requested
-     * @dev _FUNDING_REQUESTERS : address array with the addresses of the requesters of the funds
      * @dev _FUNDING_AMOUNTS : uint256 array with the funding amounts being requested
      * @dev _FUNDING_INSTRUCTIONS : string array with the funding instructions (e.g. a reference to the bank account
      * to debit)
@@ -157,7 +157,6 @@ contract Fundable is Compliant {
     {
         address requester = msg.sender;
         _check(checkRequestFunding, walletToFund, requester, amount);
-        require(_isApprovedToRequestFunding(walletToFund, requester), "Not approved to request funding");
         index = _createFundingRequest(requester, transactionId, walletToFund, amount, instructions);
     }
 
@@ -375,6 +374,7 @@ contract Fundable is Compliant {
         fundingRequestDoesNotExist(requester, transactionId)
         returns (uint256 index)
     {
+        require(requester == walletToFund || _isApprovedToRequestFunding(walletToFund, requester), "Not approved to request funding");
         pushAddressToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_REQUESTERS, requester);
         pushStringToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, transactionId);
         pushAddressToArray(FUNDABLE_CONTRACT_NAME, _WALLETS_TO_FUND, walletToFund);
