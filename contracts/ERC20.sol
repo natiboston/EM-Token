@@ -21,7 +21,7 @@ contract ERC20 is Compliant {
     // External state-modifying functions
 
     /**
-    * @notice Transfer token for a specified address
+    * @notice Transfer token to a specified address
     * @param to The address to transfer to.
     * @param value The amount to be transferred.
     */
@@ -42,6 +42,7 @@ contract ERC20 is Compliant {
     function approve(address spender, uint256 value) external returns (bool) {
         _check(checkApprove, msg.sender, spender, value);
         _approve(msg.sender, spender, value);
+        emit Approval(msg.sender, spender, value);
         return true;
     }
 
@@ -54,6 +55,7 @@ contract ERC20 is Compliant {
         uint256 newApproval = _allowance(msg.sender, spender).add(value);
         _check(checkApprove, msg.sender, spender, newApproval);
         _approve(msg.sender, spender, newApproval);
+        emit Approval(msg.sender, spender, newApproval);
         return true;
     }
 
@@ -66,6 +68,7 @@ contract ERC20 is Compliant {
         uint256 newApproval = _allowance(msg.sender, spender).sub(value);
         _check(checkApprove, msg.sender, spender, newApproval);
         _approve(msg.sender, spender, newApproval);
+        emit Approval(msg.sender, spender, newApproval);
         return true;
     }
 
@@ -79,8 +82,10 @@ contract ERC20 is Compliant {
      */
     function transferFrom(address from, address to, uint256 value) external returns (bool) {
         _check(checkTransfer, from, to, value);
-        _approve(from, msg.sender, _allowance(from, msg.sender).sub(value));
-        return _transfer(msg.sender, to, value);
+        uint256 newApproval = _allowance(from, msg.sender).sub(value);
+        _approve(from, msg.sender, newApproval);
+        emit Approval(from, msg.sender, newApproval);
+        return _transfer(from, to, value);
     }
 
     // External view functions

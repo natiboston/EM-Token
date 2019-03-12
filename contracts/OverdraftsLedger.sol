@@ -35,10 +35,6 @@ contract OverdraftsLedger is EternalStorageWrapper {
     event OverdraftDrawn(address indexed account, uint256 amount);
     event OverdraftRestored(address indexed account, uint256 amount);
 
-    // Constructor
-
-    // Modifiers
-
     // Internal functions
 
     function _unsecuredOverdraftLimit(address account) internal view returns (uint256) {

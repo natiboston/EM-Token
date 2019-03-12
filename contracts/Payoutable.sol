@@ -287,6 +287,8 @@ contract Payoutable is Compliant {
         status = _getPayoutStatus(index);
     }
 
+    // Utility admin functions
+
     /**
      * @notice Function to retrieve all the information available for a particular payout request
      * @param index The index of the payout request
@@ -317,8 +319,6 @@ contract Payoutable is Compliant {
     function manyPayoutRequests() external view returns (uint256 many) {
         return _manyPayoutRequests();
     }
-
-    // Internal functions
 
     // Private functions
 
@@ -385,7 +385,7 @@ contract Payoutable is Compliant {
         returns (uint256 index)
     {
         require(amount >= _availableFunds(walletToDebit), "Not enough funds to ask for payout");
-        _createHold(transactionId, requester, walletToDebit, SUSPENSE_WALLET, address(0), amount, false, 0);
+        _createHold(requester, transactionId, walletToDebit, SUSPENSE_WALLET, address(0), amount, false, 0);
         pushAddressToArray(PAYOUTABLE_CONTRACT_NAME, _PAYOUT_REQUESTERS, requester);
         pushStringToArray(PAYOUTABLE_CONTRACT_NAME, _PAYOUT_IDS, transactionId);
         pushAddressToArray(PAYOUTABLE_CONTRACT_NAME, _WALLETS_TO_DEBIT, walletToDebit);

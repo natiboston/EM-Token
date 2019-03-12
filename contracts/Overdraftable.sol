@@ -5,22 +5,12 @@ import "./libraries/SafeMath.sol";
 
 /**
  * @title Overdraftable - simple implementation of an overdraft line
- * @dev Overdraft lines can only be drawn or restored through internal methods, i.e. to use this through inheritance with
- * other contracts
+ * @dev Overdraft lines can only be drawn or restored through internal methods, which are implemented in HoldsLedger.
+ * This contract is only valid to set limits and read drawn amounts
  */
 contract Overdraftable is Compliant {
 
     using SafeMath for uint256;
-
-    // Data structures (in eternal storage)
-
-    // Events
-
-    // Constructor
-
-    // Modifiers
-
-    // External state-modfying functions
 
     /**
      * @notice increaseUnsecuredOverdraftLimit increases the overdraft limit for an account
@@ -64,9 +54,5 @@ contract Overdraftable is Compliant {
     function drawnAmount(address account) external view returns (uint256) {
         return _drawnAmount(account);
     }
-
-    // Internal functions
-
-    // Private functions    
 
 }

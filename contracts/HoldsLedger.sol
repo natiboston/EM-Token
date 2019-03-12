@@ -89,11 +89,16 @@ contract HoldsLedger is EternalStorageWrapper {
         _;
     }
 
+    modifier holdActive(address issuer, string memory transactionId) {
+        require (_getHoldStatus(_getHoldIndex(issuer, transactionId)) == HoldStatusCode.Created, "Hold is not active");
+        _;
+    }
+
     // Internal functions
 
     function _createHold(
-        string  memory transactionId,
         address issuer,
+        string  memory transactionId,
         address payer,
         address payee,
         address notary,
@@ -149,8 +154,8 @@ contract HoldsLedger is EternalStorageWrapper {
     function _holdData(uint256 index)
         internal view
         returns (
-            string memory transactionId,
             address        issuer,
+            string memory transactionId,
             address        payer,
             address        payee,
             address        notary,

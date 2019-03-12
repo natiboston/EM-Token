@@ -278,6 +278,8 @@ contract Fundable is Compliant {
         status = _getFundingStatus(index);
     }
 
+    // Utility admin functions
+
     /**
      * @notice Function to retrieve all the information available for a particular funding request
      * @param index The index of the funding request
@@ -308,8 +310,6 @@ contract Fundable is Compliant {
     function manyFundingRequests() external view returns (uint256 many) {
         return _manyFundingRequests();
     }
-
-    // Internal functions
 
     // Private functions
 
