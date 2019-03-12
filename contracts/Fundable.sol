@@ -35,32 +35,32 @@ contract Fundable is Compliant {
      * to request funding on behalf of wallets
      */
     bytes32 constant private _FUNDING_REQUESTERS =   "_fundingRequesters";
-    bytes32 constant private _FUNDING_IDS =          "_fundingIDs";
+    bytes32 constant private _FUNDING_IDS =          "_fundingIds";
     bytes32 constant private _WALLETS_TO_FUND =      "_walletsToFund";
     bytes32 constant private _FUNDING_AMOUNTS =      "_fundingAmounts";
     bytes32 constant private _FUNDING_INSTRUCTIONS = "_fundingInstructions";
     bytes32 constant private _FUNDING_STATUS_CODES = "_fundingStatusCodes";
-    bytes32 constant private _FUNDING_IDS_INDEXES =  "_fundingIDsIndexes";
+    bytes32 constant private _FUNDING_IDS_INDEXES =  "_fundingIdsIndexes";
     bytes32 constant private _FUNDING_APPROVALS =    "_fundingApprovals";
 
     // Events
 
     event FundingRequested(
         address indexed requester,
-        string indexed fundingId,
+        string indexed transactionId,
         address indexed walletToFund,
         uint256 amount,
         string instructions,
         uint256 index
     );
 
-    event FundingRequestInProcess(address requester, string indexed fundingId);
+    event FundingRequestInProcess(address requester, string indexed transactionId);
 
-    event FundingRequestExecuted(address requester, string indexed fundingId);
+    event FundingRequestExecuted(address requester, string indexed transactionId);
 
-    event FundingRequestRejected(address requester, string indexed fundingId, string reason);
+    event FundingRequestRejected(address requester, string indexed transactionId, string reason);
 
-    event FundingRequestCancelled(address requester, string indexed fundingId);
+    event FundingRequestCancelled(address requester, string indexed transactionId);
 
     event ApprovalToRequestFunding(address indexed walletToFund, address indexed requester);
 
@@ -70,8 +70,8 @@ contract Fundable is Compliant {
 
     // Modifiers
 
-    modifier fundingRequestExists(address requester, string memory fundingId) {
-        require(_getFundingIndex(requester, fundingId) > 0, "Funding request does not exist");
+    modifier fundingRequestExists(address requester, string memory transactionId) {
+        require(_getFundingIndex(requester, transactionId) > 0, "Funding request does not exist");
         _;
     }
 
@@ -80,19 +80,19 @@ contract Fundable is Compliant {
         _;
     }
 
-    modifier fundingRequestDoesNotExist(address requester, string memory fundingId) {
-        require(_getFundingIndex(requester, fundingId) == 0, "Funding request already exists");
+    modifier fundingRequestDoesNotExist(address requester, string memory transactionId) {
+        require(_getFundingIndex(requester, transactionId) == 0, "Funding request already exists");
         _;
     }
     
-    modifier fundingRequestJustCreated(address requester, string memory fundingId) {
-        uint256 index = _getFundingIndex(requester, fundingId);
+    modifier fundingRequestJustCreated(address requester, string memory transactionId) {
+        uint256 index = _getFundingIndex(requester, transactionId);
         require(_getFundingStatus(index) == FundingRequestStatusCode.Requested, "Funding request is already closed");
         _;
     }
 
-    modifier fundingRequestNotClosed(address requester, string memory fundingId) {
-        uint256 index = _getFundingIndex(requester, fundingId);
+    modifier fundingRequestNotClosed(address requester, string memory transactionId) {
+        uint256 index = _getFundingIndex(requester, transactionId);
         FundingRequestStatusCode status = _getFundingStatus(index);
         require(
             status == FundingRequestStatusCode.Requested || status == FundingRequestStatusCode.InProcess,
@@ -133,14 +133,14 @@ contract Fundable is Compliant {
      * the wallet
      * @return The index of the entry of the new funding request in the internal array where it is stored
      */
-    function requestFunding(string calldata fundingId, uint256 amount, string calldata instructions)
+    function requestFunding(string calldata transactionId, uint256 amount, string calldata instructions)
         external
         returns (uint256 index)
     {
         address requester = msg.sender;
         address walletToFund = msg.sender;
-        _check(checkRequestFunding, walletToFund, requester);
-        index = _createFundingRequest(requester, fundingId, walletToFund, amount, instructions);
+        _check(checkRequestFunding, walletToFund, requester, amount);
+        index = _createFundingRequest(requester, transactionId, walletToFund, amount, instructions);
     }
 
     /**
@@ -151,34 +151,30 @@ contract Fundable is Compliant {
      * @param instructions The debit instructions, as is "requestFunding"
      * @return The index of the entry of the new funding request in the internal array where it is stored
      */
-    function requestFundingFrom(string calldata fundingId, address walletToFund, uint256 amount, string calldata instructions)
+    function requestFundingFrom(string calldata transactionId, address walletToFund, uint256 amount, string calldata instructions)
         external
         returns (uint256 index)
     {
         address requester = msg.sender;
-        _check(checkApproveToRequestFunding, walletToFund, requester);
+        _check(checkRequestFunding, walletToFund, requester, amount);
         require(_isApprovedToRequestFunding(walletToFund, requester), "Not approved to request funding");
-        index = _createFundingRequest(requester, fundingId, walletToFund, amount, instructions);
+        index = _createFundingRequest(requester, transactionId, walletToFund, amount, instructions);
     }
 
     /**
-     * @notice Function to cancel an outstanding (i.e. not processed) funding request. Either the original requester
-     * or the wallet owner can actually cancel an outstanding request, but only when the cancellation is done by the
-     * requester the allowance is restored. When the owner cancels the request then the allowance is not restored,
-     * and the wallet owner will need to approve a new allowance for the requester to use, if appropriate.
-     * @dev In general the wallet owner should never need to cancel a funding request previousy sent by the requester,
-     * but this possibility is provided just in case
-     * @param fundingId The ID of the funding request, which can then be used to index all the information about
+     * @notice Function to cancel an outstanding (i.e. not processed) funding request
+     * @param transactionId The ID of the funding request, which can then be used to index all the information about
      * the funding request (together with the address of the sender)
+     * @dev Only the original requester can actually cancel an outstanding request
      */
-    function cancelFundingRequest(string calldata fundingId) external
-        fundingRequestNotClosed(msg.sender, fundingId)
+    function cancelFundingRequest(string calldata transactionId) external
+        fundingRequestNotClosed(msg.sender, transactionId)
         returns (bool)
     {
         address requester = msg.sender;
-        uint256 index = _getFundingIndex(requester, fundingId);
+        uint256 index = _getFundingIndex(requester, transactionId);
         _setFundingStatus(index, FundingRequestStatusCode.Cancelled);
-        emit FundingRequestCancelled(requester, fundingId);
+        emit FundingRequestCancelled(requester, transactionId);
         return true;
     }
 
@@ -190,19 +186,19 @@ contract Fundable is Compliant {
      * actually executing or rejecting the request, since the operator can call the executeFundingRequest or the
      * rejectFundingRequest directly, if desired.
      * @param requester The requester of the funding request
-     * @param fundingId The ID of the funding request, which can then be used to index all the information about
+     * @param transactionId The ID of the funding request, which can then be used to index all the information about
      * the funding request (together with the address of the sender)
      * @dev Only operator can do this
      * 
      */
-    function processFundingRequest(address requester, string calldata fundingId) external
-        fundingRequestJustCreated(requester, fundingId)
+    function processFundingRequest(address requester, string calldata transactionId) external
+        fundingRequestJustCreated(requester, transactionId)
         onlyRole(OPERATOR_ROLE)
         returns (bool)
     {
-        uint256 index = _getFundingIndex(requester, fundingId);
+        uint256 index = _getFundingIndex(requester, transactionId);
         _setFundingStatus(index, FundingRequestStatusCode.InProcess);
-        emit FundingRequestInProcess(requester, fundingId);
+        emit FundingRequestInProcess(requester, transactionId);
         return true;
     }
 
@@ -211,41 +207,41 @@ contract Fundable is Compliant {
      * corresponding bank account, the administrator calls this method to close the request (as "Executed") and
      * mint the requested tokens into the relevant wallet
      * @param requester The requester of the funding request
-     * @param fundingId The ID of the funding request, which can then be used to index all the information about
+     * @param transactionId The ID of the funding request, which can then be used to index all the information about
      * the funding request (together with the address of the sender)
      * @dev Only operator can do this
      * 
      */
-    function executeFundingRequest(address requester, string calldata fundingId) external
-        fundingRequestNotClosed(requester, fundingId)
+    function executeFundingRequest(address requester, string calldata transactionId) external
+        fundingRequestNotClosed(requester, transactionId)
         onlyRole(OPERATOR_ROLE)
         returns (bool)
     {
-        uint256 index = _getFundingIndex(requester, fundingId);
+        uint256 index = _getFundingIndex(requester, transactionId);
         address walletToFund = _getWalletToFund(index);
         uint256 amount = _getFundingAmount(index);
         _addFunds(walletToFund, amount);
         _setFundingStatus(index, FundingRequestStatusCode.Executed);
-        emit FundingRequestExecuted(requester, fundingId);
+        emit FundingRequestExecuted(requester, transactionId);
         return true;
     }
 
     /**
      * @notice Function to be called by the tokenizer administrator to reject a funding request
      * @param requester The requester of the funding request
-     * @param fundingId The ID of the funding request, which can then be used to index all the information about
+     * @param transactionId The ID of the funding request, which can then be used to index all the information about
      * the funding request (together with the address of the sender)
      * @param reason A string field to provide a reason for the rejection, should this be necessary
      * @dev Only operator can do this
      * 
      */
-    function rejectFundingRequest(address requester, string calldata fundingId, string calldata reason) external
-        fundingRequestNotClosed(requester, fundingId)
+    function rejectFundingRequest(address requester, string calldata transactionId, string calldata reason) external
+        fundingRequestNotClosed(requester, transactionId)
         onlyRole(OPERATOR_ROLE)
         returns (bool)
     {
-        uint256 index = _getFundingIndex(requester, fundingId);
-        emit FundingRequestRejected(requester, fundingId, reason);
+        uint256 index = _getFundingIndex(requester, transactionId);
+        emit FundingRequestRejected(requester, transactionId, reason);
         return _setFundingStatus(index, FundingRequestStatusCode.Rejected);
     }
 
@@ -264,18 +260,18 @@ contract Fundable is Compliant {
     /**
      * @notice Function to retrieve all the information available for a particular funding request
      * @param requester The requester of the funding request
-     * @param fundingId The ID of the funding request
+     * @param transactionId The ID of the funding request
      * @return index: the index of the array where the request is stored
      * @return walletToFund: the wallet to which the requested funds are directed to
      * @return amount: the amount of funds requested
      * @return instructions: the routing instructions to determine the source of the funds being requested
      * @return status: the current status of the funding request
      */
-    function retrieveFundingData(address requester, string calldata fundingId)
+    function retrieveFundingData(address requester, string calldata transactionId)
         external view
         returns (uint256 index, address walletToFund, uint256 amount, string memory instructions, FundingRequestStatusCode status)
     {
-        index = _getFundingIndex(requester, fundingId);
+        index = _getFundingIndex(requester, transactionId);
         walletToFund = _getWalletToFund(index);
         amount = _getFundingAmount(index);
         instructions = _getFundingInstructions(index);
@@ -286,7 +282,7 @@ contract Fundable is Compliant {
      * @notice Function to retrieve all the information available for a particular funding request
      * @param index The index of the funding request
      * @return requester: address that issued the funding request
-     * @return fundingId: the ID of the funding request (from this requester)
+     * @return transactionId: the ID of the funding request (from this requester)
      * @return walletToFund: the wallet to which the requested funds are directed to
      * @return amount: the amount of funds requested
      * @return instructions: the routing instructions to determine the source of the funds being requested
@@ -294,10 +290,10 @@ contract Fundable is Compliant {
      */
     function retrieveFundingData(uint256 index)
         external view
-        returns (address requester, string memory fundingId, address walletToFund, uint256 amount, string memory instructions, FundingRequestStatusCode status)
+        returns (address requester, string memory transactionId, address walletToFund, uint256 amount, string memory instructions, FundingRequestStatusCode status)
     {
         requester = _getFundingRequester(index);
-        fundingId = _getFundingID(index);
+        transactionId = _gettransactionId(index);
         walletToFund = _getWalletToFund(index);
         amount = _getFundingAmount(index);
         instructions = _getFundingInstructions(index);
@@ -327,17 +323,17 @@ contract Fundable is Compliant {
 
     function _getFundingIndex(
         address requester,
-        string memory fundingId
+        string memory transactionId
     )
         private view
-        fundingRequestExists(requester, fundingId)
+        fundingRequestExists(requester, transactionId)
         returns (uint256 index)
     {
-        index = getUintFromDoubleMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, requester, fundingId);
+        index = getUintFromDoubleMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, requester, transactionId);
     }
 
-    function _getFundingID(uint256 index) private view fundingRequestIndexExists(index) returns (string memory fundingId) {
-        fundingId = getStringFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, index);
+    function _gettransactionId(uint256 index) private view fundingRequestIndexExists(index) returns (string memory transactionId) {
+        transactionId = getStringFromArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, index);
     }
 
     function _getWalletToFund(uint256 index) private view fundingRequestIndexExists(index) returns (address walletToFund) {
@@ -374,20 +370,20 @@ contract Fundable is Compliant {
         return getBoolFromDoubleMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_APPROVALS, walletToFund, requester);
     }
 
-    function _createFundingRequest(address requester, string memory fundingId, address walletToFund, uint256 amount, string memory instructions)
+    function _createFundingRequest(address requester, string memory transactionId, address walletToFund, uint256 amount, string memory instructions)
         private
-        fundingRequestDoesNotExist(requester, fundingId)
+        fundingRequestDoesNotExist(requester, transactionId)
         returns (uint256 index)
     {
         pushAddressToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_REQUESTERS, requester);
-        pushStringToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, fundingId);
+        pushStringToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS, transactionId);
         pushAddressToArray(FUNDABLE_CONTRACT_NAME, _WALLETS_TO_FUND, walletToFund);
         pushUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_AMOUNTS, amount);
         pushStringToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_INSTRUCTIONS, instructions);
         pushUintToArray(FUNDABLE_CONTRACT_NAME, _FUNDING_STATUS_CODES, uint256(FundingRequestStatusCode.Requested));
         index = _manyFundingRequests();
-        setUintInDoubleMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, requester, fundingId, index);
-        emit FundingRequested(requester, fundingId, walletToFund, amount, instructions, index);
+        setUintInDoubleMapping(FUNDABLE_CONTRACT_NAME, _FUNDING_IDS_INDEXES, requester, transactionId, index);
+        emit FundingRequested(requester, transactionId, walletToFund, amount, instructions, index);
         return index;
     }
 

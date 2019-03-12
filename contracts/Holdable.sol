@@ -59,8 +59,8 @@ contract Holdable is Compliant {
     /**
      * @notice Function to perform a hold on behalf of a wallet owner (the "payer") in favor of another wallet owner (the
      * "payee"), and specifying a notary who will be 
-     * @param holdId An unique ID to identify the hold. Internally IDs will be stored together with the addresses
-     * issuing the holds (on a mapping (address => mapping (string => XXX ))), so the same holdId can be used by many
+     * @param transactionId An unique ID to identify the hold. Internally IDs will be stored together with the addresses
+     * issuing the holds (on a mapping (address => mapping (string => XXX ))), so the same transactionId can be used by many
      * different holders. This is provided assuming that the hold functionality is a competitive resource
      * @param payer The address from which the tokens are to be taken (if the hold is executed)
      * @param payee The address to which the tokens are to be paid (if the hold is executed)
@@ -72,45 +72,47 @@ contract Holdable is Compliant {
      * throughout the whole contract)
      */
     function hold(
-        string calldata holdId,
+        string  calldata transactionId,
         address payer,
         address payee,
         address notary,
         uint256 amount,
+        bool    expires,
         uint256 timeToExpiration
     )
         external
         returns (uint256 index)
     {
-        _check(checkHold, payer, payee);
+        _check(checkHold, payer, payee, notary, amount);
         require(payer == msg.sender || _getHoldingApproval(msg.sender, payer), "Sender is not approved to hold");
         require(amount >= _availableFunds(payer), "Not enough funds to hold");
-        return _createHold(holdId, msg.sender, payer, payee, notary, amount, timeToExpiration);
+        return _createHold(transactionId, msg.sender, payer, payee, notary, amount, expires, timeToExpiration);
     }
 
     /**
      * @notice Function to release a hold (if at all possible)
      * @param issuer The address of the original sender of the hold
-     * @param holdId The ID of the hold in question
-     * @dev issuer and holdId are needed to index a hold. This is provided so different issuers can use the same holdId,
+     * @param transactionId The ID of the hold in question
+     * @dev issuer and transactionId are needed to index a hold. This is provided so different issuers can use the same transactionId,
      * as holding is a competitive resource
      */
-    function releaseHold(address issuer, string calldata holdId) external returns (bool) {
+    function releaseHold(address issuer, string calldata transactionId) external returns (bool) {
         uint256 index;
         address payer;
         address payee;
         address notary;
         uint256 amount;
+        bool expires;
         uint256 expiration;
         HoldStatusCode status;
-        (index, payer, payee, notary, amount, expiration, status) = _holdData(issuer, holdId);
+        (index, payer, payee, notary, amount, expires, expiration, status) = _holdData(issuer, transactionId);
         require(notary != SUSPENSE_WALLET, "This hold cannot be released");
         if(hasRole(msg.sender, OPERATOR_ROLE)) {
-            return _finalizeHold(msg.sender, holdId, HoldStatusCode.ReleasedByOperator);
+            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ReleasedByOperator);
         } else if(notary == msg.sender) {
-            return _finalizeHold(msg.sender, holdId, HoldStatusCode.ReleasedByNotary);
-        } else if(block.timestamp >= expiration) {
-            return _finalizeHold(msg.sender, holdId, HoldStatusCode.ReleasedDueToExpiration);
+            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ReleasedByNotary);
+        } else if(expires && block.timestamp >= expiration) {
+            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ReleasedDueToExpiration);
         } else {
             require(false, "Hold cannot be released");
         }
@@ -119,25 +121,26 @@ contract Holdable is Compliant {
     /**
      * @notice Function to execute a hold (if at all possible)
      * @param issuer The address of the original sender of the hold
-     * @param holdId The ID of the hold in question
-     * @dev issuer and holdId are needed to index a hold. This is provided so different issuers can use the same holdId,
+     * @param transactionId The ID of the hold in question
+     * @dev issuer and transactionId are needed to index a hold. This is provided so different issuers can use the same transactionId,
      * as holding is a competitive resource
      */
-    function executeHold(address issuer, string calldata holdId) external returns (bool) {
+    function executeHold(address issuer, string calldata transactionId) external returns (bool) {
         uint256 index;
         address payer;
         address payee;
         address notary;
         uint256 amount;
+        bool expires;
         uint256 expiration;
         HoldStatusCode status;
-        (index, payer, payee, notary, amount, expiration, status) = _holdData(issuer, holdId);
+        (index, payer, payee, notary, amount, expires, expiration, status) = _holdData(issuer, transactionId);
         _removeFunds(payer, amount);
         _addFunds(payee, amount);
         if(hasRole(msg.sender, OPERATOR_ROLE)) {
-            return _finalizeHold(msg.sender, holdId, HoldStatusCode.ExecutedByOperator);
+            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ExecutedByOperator);
         } else if(notary == msg.sender) {
-            return _finalizeHold(msg.sender, holdId, HoldStatusCode.ExecutedByNotary);
+            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ExecutedByNotary);
         } else {
             require(false, "Not authorized to execute");
         }
@@ -158,7 +161,7 @@ contract Holdable is Compliant {
     /**
      * @notice Function to retrieve all the information available for a particular hold
      * @param issuer The address of the original sender of the hold
-     * @param holdId The ID of the hold in question
+     * @param transactionId The ID of the hold in question
      * @return index: the index of the hold (an unique identifier)
      * @return payer: the wallet from which the tokens will be taken if the hold is executed
      * @return payee: the wallet to which the tokens will be transferred if the hold is executed
@@ -167,10 +170,10 @@ contract Holdable is Compliant {
      * @return expiration: the absolute time (block.timestamp) by which the hold will expire (after that time
      * the hold can be released by anyone)
      * @return status: the current status of the hold
-     * @dev issuer and holdId are needed to index a hold. This is provided so different issuers can use the same holdId,
+     * @dev issuer and transactionId are needed to index a hold. This is provided so different issuers can use the same transactionId,
      * as holding is a competitive resource
      */
-    function retrieveHoldData(address issuer, string calldata holdId)
+    function retrieveHoldData(address issuer, string calldata transactionId)
         external view
         returns (
             uint256 index,
@@ -178,11 +181,12 @@ contract Holdable is Compliant {
             address payee,
             address notary,
             uint256 amount,
+            bool expires,
             uint256 expiration,
             HoldStatusCode status
         )
     {
-        return _holdData(issuer, holdId);
+        return _holdData(issuer, transactionId);
     }
 
     /**

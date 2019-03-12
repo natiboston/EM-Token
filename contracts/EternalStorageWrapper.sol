@@ -2,6 +2,7 @@ pragma solidity ^0.5;
 
 import "../../EternalStorage/contracts/wrappers/EternalStorageUintArray.sol";
 import "../../EternalStorage/contracts/wrappers/EternalStorageAddressArray.sol";
+import "../../EternalStorage/contracts/wrappers/EternalStorageBoolArray.sol";
 import "../../EternalStorage/contracts/wrappers/EternalStorageStringArray.sol";
 import "../../EternalStorage/contracts/wrappers/EternalStorageAllAddressMappings.sol";
 import "../../EternalStorage/contracts/wrappers/EternalStorageAllStringMappings.sol";
@@ -25,6 +26,7 @@ import "../../EternalStorage/contracts/wrappers/EternalStorageUintDoubleMapping.
 contract EternalStorageWrapper is
     EternalStorageUintArray,
     EternalStorageAddressArray,
+    EternalStorageBoolArray,
     EternalStorageStringArray,
     EternalStorageAllAddressMappings,
     EternalStorageAllStringMappings,

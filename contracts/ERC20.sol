@@ -26,7 +26,7 @@ contract ERC20 is Compliant {
     * @param value The amount to be transferred.
     */
     function transfer(address to, uint256 value) external returns (bool) {
-        _check(checkTransfer, msg.sender, to);
+        _check(checkTransfer, msg.sender, to, value);
         return _transfer(msg.sender, to, value);
     }
 
@@ -40,7 +40,7 @@ contract ERC20 is Compliant {
      * @param value The amount of tokens to be spent.
      */
     function approve(address spender, uint256 value) external returns (bool) {
-        _check(checkApprove, msg.sender, spender);
+        _check(checkApprove, msg.sender, spender, value);
         _approve(msg.sender, spender, value);
         return true;
     }
@@ -51,8 +51,9 @@ contract ERC20 is Compliant {
      * @param value The amount of tokens to be spent.
      */
     function increaseApproval(address spender, uint256 value) external returns (bool) {
-        _check(checkApprove, msg.sender, spender);
-        _approve(msg.sender, spender, _allowance(msg.sender, spender).add(value));
+        uint256 newApproval = _allowance(msg.sender, spender).add(value);
+        _check(checkApprove, msg.sender, spender, newApproval);
+        _approve(msg.sender, spender, newApproval);
         return true;
     }
 
@@ -62,8 +63,9 @@ contract ERC20 is Compliant {
      * @param value The amount of tokens to be spent.
      */
     function decreaseApproval(address spender, uint256 value) external returns (bool) {
-        _check(checkApprove, msg.sender, spender);
-        _approve(msg.sender, spender, _allowance(msg.sender, spender).sub(value));
+        uint256 newApproval = _allowance(msg.sender, spender).sub(value);
+        _check(checkApprove, msg.sender, spender, newApproval);
+        _approve(msg.sender, spender, newApproval);
         return true;
     }
 
@@ -76,7 +78,7 @@ contract ERC20 is Compliant {
      * @param value uint256 the amount of tokens to be transferred
      */
     function transferFrom(address from, address to, uint256 value) external returns (bool) {
-        _check(checkTransfer, from, to);
+        _check(checkTransfer, from, to, value);
         _approve(from, msg.sender, _allowance(from, msg.sender).sub(value));
         return _transfer(msg.sender, to, value);
     }

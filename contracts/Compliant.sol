@@ -14,6 +14,8 @@ import "./Whitelistable.sol";
  */
 contract Compliant is ConsolidatedLedger, Whitelistable {
 
+    uint256 constant MAX_VALUE = 2**256 - 1;
+
     // Data structures (in eternal storage)
         
     // Events
@@ -23,25 +25,29 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     // ERC20
     
-    function checkTransfer(address from, address to) public view
+    function checkTransfer(address from, address to, uint256 value) public view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(from)) {
             reason = "Sender is not whitelisted";
         } else if(!_isWhitelisted(to)) {
             reason = "Receiver is not whitelisted";
+        } else if(value > MAX_VALUE) {
+            reason = "Amount too big";
         } else {
             canDo = true;
         }
     }
 
-    function checkApprove(address allower, address spender) public view
+    function checkApprove(address allower, address spender, uint256 value) public view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(allower)) {
             reason = "Allower is not whitelisted";
         } else if(!_isWhitelisted(spender)) {
             reason = "Spender is not whitelisted";
+        } else if(value > MAX_VALUE) {
+            reason = "Amount too big";
         } else {
             canDo = true;
         }
@@ -49,13 +55,17 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     // Holdable
 
-    function checkHold(address payer, address payee) public view
+    function checkHold(address payer, address payee, address notary, uint256 value) public view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(payer)) {
             reason = "Payer is not whitelisted";
         } else if(!_isWhitelisted(payee)) {
             reason = "Payee is not whitelisted";
+        } else if(notary != address(0) && !_isWhitelisted(notary)) {
+            reason = "Notary is not whitelisted";
+        } else if(value > MAX_VALUE) {
+            reason = "Amount too big";
         } else {
             canDo = true;
         }
@@ -75,10 +85,10 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     // Clearable
     
-    function checkApproveToRequestClearedTransfer(address walletToDebit, address requester) public view
+    function checkApproveToOrderClearedTransfer(address fromWallet, address requester) public view
         returns (bool canDo, string memory reason)
     {
-        if(!_isWhitelisted(walletToDebit)) {
+        if(!_isWhitelisted(fromWallet)) {
             reason = "Wallet to debit not whitelisted";
         } else if(!_isWhitelisted(requester)) {
             reason = "Requester not whitelisted";
@@ -87,13 +97,15 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    function checkRequestClearedTransfer(address walletToDebit, address requester) public view
+    function checkOrderClearedTransfer(address fromWallet, address toWallet, uint256 value) public view
         returns (bool canDo, string memory reason)
     {
-        if(!_isWhitelisted(walletToDebit)) {
+        if(!_isWhitelisted(fromWallet)) {
             reason = "Wallet to debit not whitelisted";
-        } else if(!_isWhitelisted(requester)) {
+        } else if(!_isWhitelisted(toWallet)) {
             reason = "Requester not whitelisted";
+        } else if(value > MAX_VALUE) {
+            reason = "Amount too big";
         } else {
             canDo = true;
         }
@@ -113,13 +125,15 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    function checkRequestFunding(address walletToFund, address requester) public view
+    function checkRequestFunding(address walletToFund, address requester, uint256 value) public view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(walletToFund)) {
             reason = "Wallet to fund not whitelisted";
         } else if(!_isWhitelisted(requester)) {
             reason = "Requester not whitelisted";
+        } else if(value > MAX_VALUE) {
+            reason = "Amount too big";
         } else {
             canDo = true;
         }
@@ -139,13 +153,15 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    function checkRequestPayout(address walletToDebit, address requester) public view
+    function checkRequestPayout(address walletToDebit, address requester, uint256 value) public view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(walletToDebit)) {
             reason = "Wallet to debit not whitelisted";
         } else if(!_isWhitelisted(requester)) {
             reason = "Requester not whitelisted";
+        } else if(value > MAX_VALUE) {
+            reason = "Amount too big";
         } else {
             canDo = true;
         }
@@ -155,6 +171,35 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     function _check(bool test) internal pure {
         require(test, "Check failed");
+    }
+
+    function _check(
+        function(address, address, address, uint256) returns (bool, string memory) checkFunction,
+        address a,
+        address b,
+        address c,
+        uint256 d
+    )
+        internal
+    {
+        bool test;
+        string memory reason;
+        (test, reason) = checkFunction(a, b, c, d);
+        require(test, reason);
+    }
+
+    function _check(
+        function(address, address, uint256) returns (bool, string memory) checkFunction,
+        address a,
+        address b,
+        uint256 c
+    )
+        internal
+    {
+        bool test;
+        string memory reason;
+        (test, reason) = checkFunction(a, b, c);
+        require(test, reason);
     }
 
     function _check(function(address, address) returns (bool, string memory) checkFunction, address a, address b) internal {
