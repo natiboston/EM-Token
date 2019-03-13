@@ -85,7 +85,7 @@ contract Fundable is IFundable, Compliant {
      */
     function approveToRequestFunding(address requester) external returns (bool) {
         address walletToFund = msg.sender;
-        _check(checkApproveToRequestFunding, walletToFund, requester);
+        _check(_checkApproveToRequestFunding, walletToFund, requester);
         return _approveToRequestFunding(walletToFund, requester);
     }
 
@@ -113,7 +113,7 @@ contract Fundable is IFundable, Compliant {
     {
         address requester = msg.sender;
         address walletToFund = msg.sender;
-        _check(checkRequestFunding, walletToFund, requester, amount);
+        _check(_checkRequestFunding, walletToFund, requester, amount);
         index = _createFundingRequest(requester, transactionId, walletToFund, amount, instructions);
     }
 
@@ -130,7 +130,7 @@ contract Fundable is IFundable, Compliant {
         returns (uint256 index)
     {
         address requester = msg.sender;
-        _check(checkRequestFunding, walletToFund, requester, amount);
+        _check(_checkRequestFunding, walletToFund, requester, amount);
         index = _createFundingRequest(requester, transactionId, walletToFund, amount, instructions);
     }
 

@@ -52,7 +52,7 @@ contract Holdable is IHoldable, Compliant {
      */
     function approveToHold(address holder) external returns (bool)
     {
-        _check(checkApproveToHold, msg.sender, holder);
+        _check(_checkApproveToHold, msg.sender, holder);
         return _setHoldingApproval(msg.sender, holder, true);
     }
 
@@ -93,7 +93,7 @@ contract Holdable is IHoldable, Compliant {
     {
         address requester = msg.sender;
         address payer = msg.sender;
-        _check(checkHold, payer, payee, notary, amount);
+        _check(_checkHold, payer, payee, notary, amount);
         return _hold(requester, transactionId, payer, payee, notary, amount, expires, timeToExpiration);
     }
 
@@ -126,7 +126,7 @@ contract Holdable is IHoldable, Compliant {
         returns (uint256 index)
     {
         address requester = msg.sender;
-        _check(checkHold, payer, payee, notary, amount);
+        _check(_checkHold, payer, payee, notary, amount);
         return  _hold(requester, transactionId, payer, payee, notary, amount, expires, timeToExpiration);
     }
 

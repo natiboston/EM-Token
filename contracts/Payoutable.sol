@@ -81,7 +81,7 @@ contract Payoutable is IPayoutable, Compliant {
      */
     function approveToRequestPayout(address requester) external returns (bool) {
         address walletToDebit = msg.sender;
-        _check(checkApproveToRequestPayout, walletToDebit, requester);
+        _check(_checkApproveToRequestPayout, walletToDebit, requester);
         return _approveToRequestPayout(walletToDebit, requester);
     }
 
@@ -109,7 +109,7 @@ contract Payoutable is IPayoutable, Compliant {
     {
         address requester = msg.sender;
         address walletToDebit = msg.sender;
-        _check(checkRequestPayout, walletToDebit, requester, amount);
+        _check(_checkRequestPayout, walletToDebit, requester, amount);
         index = _createPayoutRequest(requester, transactionId, walletToDebit, amount, instructions);
     }
 
@@ -126,7 +126,7 @@ contract Payoutable is IPayoutable, Compliant {
         returns (uint256 index)
     {
         address requester = msg.sender;
-        _check(checkRequestPayout, walletToDebit, requester, amount);
+        _check(_checkRequestPayout, walletToDebit, requester, amount);
         index = _createPayoutRequest(requester, transactionId, walletToDebit, amount, instructions);
     }
 

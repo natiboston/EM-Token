@@ -85,7 +85,7 @@ contract Clearable is IClearable, Compliant {
      */
     function approveToRequestClearedTransfer(address requester) external returns (bool) {
         address fromWallet = msg.sender;
-        _check(checkApproveToOrderClearedTransfer, fromWallet, requester);
+        _check(_checkApproveToOrderClearedTransfer, fromWallet, requester);
         return _approveToRequestClearedTransfer(fromWallet, requester);
     }
 
@@ -113,7 +113,7 @@ contract Clearable is IClearable, Compliant {
     {
         address requester = msg.sender;
         address fromWallet = msg.sender;
-        _check(checkOrderClearedTransfer, fromWallet, toWallet, amount);
+        _check(_checkOrderClearedTransfer, fromWallet, toWallet, amount);
         index = _createClearedTransferRequest(requester, transactionId, fromWallet, toWallet, amount);
     }
 
@@ -137,7 +137,7 @@ contract Clearable is IClearable, Compliant {
         returns (uint256 index)
     {
         address requester = msg.sender;
-        _check(checkOrderClearedTransfer, fromWallet, toWallet, amount);
+        _check(_checkOrderClearedTransfer, fromWallet, toWallet, amount);
         index = _createClearedTransferRequest(requester, transactionId, fromWallet, toWallet, amount);
     }
 

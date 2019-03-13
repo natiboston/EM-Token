@@ -1,5 +1,6 @@
 pragma solidity ^0.5;
 
+import "./interface/ICompliant.sol";
 import "./ConsolidatedLedger.sol";
 import "./Whitelistable.sol";
 
@@ -12,15 +13,88 @@ import "./Whitelistable.sol";
  * order to implement permissioning logic (e.g. whitelisting flags, or cumulative cashins or cashouts to check
  * cumulative limits)
  */
-contract Compliant is ConsolidatedLedger, Whitelistable {
+contract Compliant is ICompliant, ConsolidatedLedger, Whitelistable {
 
     uint256 constant MAX_VALUE = 2**256 - 1;
 
-    // Interface functions
+    // External functions
 
     // ERC20
     
-    function checkTransfer(address from, address to, uint256 value) public view
+    function checkTransfer(address from, address to, uint256 value) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkTransfer(from, to, value);
+    }
+
+    function checkApprove(address allower, address spender, uint256 value) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkApprove(allower, spender, value);
+    }
+
+    // Holdable
+
+    function checkHold(address payer, address payee, address notary, uint256 value) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkHold(payer, payee, notary, value);
+    }
+
+    function checkApproveToHold(address payer, address holder) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkApproveToHold(payer, holder);
+    }
+
+    // Clearable
+    
+    function checkApproveToOrderClearedTransfer(address fromWallet, address requester) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkApproveToOrderClearedTransfer(fromWallet, requester);
+    }
+
+    function checkOrderClearedTransfer(address fromWallet, address toWallet, uint256 value) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkOrderClearedTransfer(fromWallet, toWallet, value);
+    }
+
+    // Fundable
+    
+    function checkApproveToRequestFunding(address walletToFund, address requester) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkApproveToRequestFunding(walletToFund, requester);
+    }
+
+    function checkRequestFunding(address walletToFund, address requester, uint256 value) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkRequestFunding(walletToFund, requester, value);
+    }
+
+    // Payoutable
+    
+    function checkApproveToRequestPayout(address walletToDebit, address requester) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkApproveToRequestPayout(walletToDebit, requester);
+    }
+
+    function checkRequestPayout(address walletToDebit, address requester, uint256 value) external view
+        returns (bool canDo, string memory reason)
+    {
+        return _checkRequestPayout(walletToDebit, requester, value);
+    }
+
+
+    // Internal functions
+
+    // ERC20
+    
+    function _checkTransfer(address from, address to, uint256 value) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(from)) {
@@ -34,7 +108,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    function checkApprove(address allower, address spender, uint256 value) public view
+    function _checkApprove(address allower, address spender, uint256 value) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(allower)) {
@@ -50,7 +124,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     // Holdable
 
-    function checkHold(address payer, address payee, address notary, uint256 value) public view
+    function _checkHold(address payer, address payee, address notary, uint256 value) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(payer)) {
@@ -66,7 +140,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    function checkApproveToHold(address payer, address holder) public view
+    function _checkApproveToHold(address payer, address holder) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(payer)) {
@@ -80,7 +154,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     // Clearable
     
-    function checkApproveToOrderClearedTransfer(address fromWallet, address requester) public view
+    function _checkApproveToOrderClearedTransfer(address fromWallet, address requester) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(fromWallet)) {
@@ -92,7 +166,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    function checkOrderClearedTransfer(address fromWallet, address toWallet, uint256 value) public view
+    function _checkOrderClearedTransfer(address fromWallet, address toWallet, uint256 value) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(fromWallet)) {
@@ -108,7 +182,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     // Fundable
     
-    function checkApproveToRequestFunding(address walletToFund, address requester) public view
+    function _checkApproveToRequestFunding(address walletToFund, address requester) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(walletToFund)) {
@@ -120,7 +194,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    function checkRequestFunding(address walletToFund, address requester, uint256 value) public view
+    function _checkRequestFunding(address walletToFund, address requester, uint256 value) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(walletToFund)) {
@@ -136,7 +210,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     // Payoutable
     
-    function checkApproveToRequestPayout(address walletToDebit, address requester) public view
+    function _checkApproveToRequestPayout(address walletToDebit, address requester) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(walletToDebit)) {
@@ -148,7 +222,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    function checkRequestPayout(address walletToDebit, address requester, uint256 value) public view
+    function _checkRequestPayout(address walletToDebit, address requester, uint256 value) internal view
         returns (bool canDo, string memory reason)
     {
         if(!_isWhitelisted(walletToDebit)) {
@@ -162,7 +236,7 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         }
     }
 
-    // Internal functions
+    // Generic functions to check
 
     function _check(bool test) internal pure {
         require(test, "Check failed");
