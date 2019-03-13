@@ -1,0 +1,177 @@
+@startuml
+title EMToken standard interfaces structure
+hide footbox
+
+skinparam {
+  ActorBorderColor #555555
+  ParticipantBorderColor #555555
+  BoundaryBorderColor #555555
+  ArrowColor #555555
+  SequenceLifeLineBorderColor #555555
+  SequenceBoxBorderColor #FFFFFF
+  NoteBorderColor #555555
+  NoteBackgroundColor #DDDDDD
+}
+
+'class XXX{
+    '{field}event FundingRequested
+    '==
+    '{method}\t// User callable functions:
+    '{method}+requestFunding(uint256 amount, string instructions)
+    '--
+    '{method}\t// Owner functions (onlyOwner, to respond to user requests):
+    '{method}#executeFundingRequest(uint256 fundingId)
+'}
+
+class IEMoneyToken {
+  {field}event Created
+  ==
+  {method}name()
+  {method}symbol()
+  {method}currency()
+  {method}decimals()
+  {method}version()
+}
+
+class IERC20 {
+  {field}event Transfer
+  {field}event Approval
+  ==
+  {method}+transfer()
+  {method}+approve()
+  {method}+increaseApproval()
+  {method}+decreaseApproval()
+  {method}+transferFrom()
+  {method}#totalSupply()
+  {method}#balanceOf()
+  {method}#allowance()
+}
+
+class IHoldable {
+  {field}event HoldCreated
+  {field}event HoldExecuted
+  {field}event HoldReleased
+  {field}event HoldRenewed
+  ==
+  {method}+hold()
+  {method}+holdFrom()
+  {method}+releaseHold()
+  {method}+executeHold()
+  {method}#isApprovedToHold()
+  {method}#retrieveHoldData()
+  {method}#balanceOnHold()
+  {method}#totalSupplyOnHold()
+}
+
+class IOverdraftable {
+  {field}event UnsecuredOverdraftLimitSet
+  ==
+  {method}+increaseUnsecuredOverdraftLimit()
+  {method}+decreaseUnsecuredOverdraftLimit()
+  {method}#unsecuredOverdraftLimit()
+  {method}#drawnAmount()
+}
+
+class IClearable {
+  {field}event ClearedTransferRequested
+  {field}event ClearedTransferRequestInProcess
+  {field}event ClearedTransferRequestExecuted
+  {field}event ClearedTransferRequestRejected
+  {field}event ClearedTransferRequestCancelled
+  {field}event ApprovalToRequestClearedTransfer
+  {field}event RevokeApprovalToRequestClearedTransfer
+  ==
+  {method}+approveToRequestClearedTransfer()
+  {method}+revokeApprovalToRequestClearedTransfer()
+  {method}+orderClearedTransfer()
+  {method}+orderClearedTransferFrom()
+  {method}+cancelClearedTransferRequest()
+  {method}+processClearedTransferRequest()
+  {method}+executeClearedTransferRequest()
+  {method}+rejectClearedTransferRequest()
+  {method}#isApprovedToRequestClearedTransfer()
+  {method}#retrieveClearedTransferData()
+}
+
+class IFundable {
+  {field}event FundingRequested
+  {field}event FundingRequestInProcess
+  {field}event FundingRequestExecuted
+  {field}event FundingRequestRejected
+  {field}event FundingRequestCancelled
+  {field}event ApprovalToRequestFunding
+  {field}event RevokeApprovalToRequestFunding
+  ==
+  {method}+approveToRequestFunding()
+  {method}+revokeApprovalToRequestFunding()
+  {method}+requestFunding()
+  {method}+requestFundingFrom()
+  {method}+cancelFundingRequest()
+  {method}+processFundingRequest()
+  {method}+executeFundingRequest()
+  {method}+rejectFundingRequest()
+  {method}#isApprovedToRequestFunding()
+  {method}#retrieveFundingData()
+}
+
+class IPayoutable {
+  {field}event PayoutRequested
+  {field}event PayoutRequestInProcess
+  {field}event PayoutRequestExecuted
+  {field}event PayoutRequestRejected
+  {field}event PayoutRequestCancelled
+  {field}event ApprovalToRequestPayout
+  {field}event RevokeApprovalToRequestPayout
+  ==
+  {method}+approveToRequestPayout()
+  {method}+revokeApprovalToRequestPayout()
+  {method}+requestPayout()
+  {method}+requestPayoutFrom()
+  {method}+cancelPayoutRequest()
+  {method}+processPayoutRequest()
+  {method}+executePayoutRequest()
+  {method}+rejectPayoutRequest()
+  {method}#isApprovedToRequestPayout()
+  {method}#retrievePayoutData()
+}
+
+class ICompliant {
+  --ERC20--
+  {method}#checkTransfer()
+  {method}#checkApprove()
+  --Holdable--
+  {method}#checkHold()
+  {method}#checkApproveToHold()
+  --Clearable--
+  {method}#checkApproveToOrderClearedTransfer()
+  {method}#checkOrderClearedTransfer()
+  --Fundable--
+  {method}#checkApproveToRequestFunding()
+  {method}#checkRequestFunding()
+  --Payoutable--
+  {method}#checkApproveToRequestPayout()
+  {method}#checkRequestPayout()
+}
+
+class IConsolidatedLedger {
+  {method}#availableFunds()
+  {method}#netBalanceOf()
+}
+
+IEMoneyToken <|-- IERC20
+IEMoneyToken <|-- IHoldable
+IEMoneyToken <|-- IOverdraftable
+IEMoneyToken <|-- IClearable
+IEMoneyToken <|-- IFundable
+IEMoneyToken <|-- IPayoutable
+
+IERC20 <|-- ICompliant
+IHoldable <|-- ICompliant
+IOverdraftable <|-- ICompliant
+IClearable <|-- ICompliant
+IFundable <|-- ICompliant
+IPayoutable <|-- ICompliant
+
+ICompliant <|-- IConsolidatedLedger
+
+@enduml

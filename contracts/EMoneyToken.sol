@@ -40,10 +40,10 @@ contract EMoneyToken is IEMoneyToken, ERC20, Holdable, Overdraftable, Clearable,
         setString(EMONEYTOKEN_CONTRACT_NAME, _SYMBOL, symbol);
         setString(EMONEYTOKEN_CONTRACT_NAME, _CURRENCY, currency);
         setUint(EMONEYTOKEN_CONTRACT_NAME, _DECIMALS, uint256(decimals));
-        emit created(name, symbol, currency, decimals, _version);
+        emit Created(name, symbol, currency, decimals, _version);
     }
 
-    // Interface functions
+    // External functions
 
     /**
      * @notice Show the name of the tokenizer entity
@@ -84,9 +84,5 @@ contract EMoneyToken is IEMoneyToken, ERC20, Holdable, Overdraftable, Clearable,
     function version() external pure returns (string memory) {
         return _version;
     }
-
-    // Internal functions
-
-    // Private functions
 
 }

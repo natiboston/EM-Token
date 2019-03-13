@@ -8,7 +8,7 @@ pragma solidity ^0.5;
  */
 interface IEMoneyToken {
 
-    event created(string name, string symbol, string currency, uint8 decimals, string version);
+    event Created(string name, string symbol, string currency, uint8 decimals, string version);
 
     /**
      * @notice Show the name of the tokenizer entity
