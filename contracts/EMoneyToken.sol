@@ -1,6 +1,6 @@
 pragma solidity ^0.5;
 
-import "./IEMoneyToken.sol";
+import "./interface/IEMoneyToken.sol";
 import "./ERC20.sol";
 import "./Holdable.sol";
 import "./Overdraftable.sol";
@@ -32,10 +32,6 @@ contract EMoneyToken is IEMoneyToken, ERC20, Holdable, Overdraftable, Clearable,
     bytes32 constant private _DECIMALS = "_decimals";
 
     string constant private _version = "0.1.0";
-
-    // Events
-
-    event created(string name, string symbol, string currency, uint8 decimals, string version);
 
     // Constructor
 

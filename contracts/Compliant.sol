@@ -16,11 +16,6 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
 
     uint256 constant MAX_VALUE = 2**256 - 1;
 
-    // Data structures (in eternal storage)
-        
-    // Events
-    // Constructor
-    // Modifiers
     // Interface functions
 
     // ERC20
@@ -215,7 +210,5 @@ contract Compliant is ConsolidatedLedger, Whitelistable {
         (test, reason) = checkFunction(a);
         require(test, reason);
     }
-
-    // Private functions
 
 }

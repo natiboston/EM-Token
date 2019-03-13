@@ -2,6 +2,7 @@ pragma solidity ^0.5;
 
 import "./libraries/SafeMath.sol";
 import "./Compliant.sol";
+import "./interface/IFundable.sol";
 
 /**
  * @title Fundable
@@ -10,11 +11,9 @@ import "./Compliant.sol";
  * "requestFrom" type of method), and requests are executed or rejected by the tokenizing entity (i.e. processed by
  * the owner of the overall contract)
  */
-contract Fundable is Compliant {
+contract Fundable is IFundable, Compliant {
 
     using SafeMath for uint256;
-
-    enum FundingRequestStatusCode { Nonexistent, Requested, InProcess, Executed, Rejected, Cancelled }
 
     // Data structures (in eternal storage)
 
@@ -42,31 +41,6 @@ contract Fundable is Compliant {
     bytes32 constant private _FUNDING_STATUS_CODES = "_fundingStatusCodes";
     bytes32 constant private _FUNDING_IDS_INDEXES =  "_fundingIdsIndexes";
     bytes32 constant private _FUNDING_APPROVALS =    "_fundingApprovals";
-
-    // Events
-
-    event FundingRequested(
-        address indexed requester,
-        string indexed transactionId,
-        address indexed walletToFund,
-        uint256 amount,
-        string instructions,
-        uint256 index
-    );
-
-    event FundingRequestInProcess(address requester, string indexed transactionId);
-
-    event FundingRequestExecuted(address requester, string indexed transactionId);
-
-    event FundingRequestRejected(address requester, string indexed transactionId, string reason);
-
-    event FundingRequestCancelled(address requester, string indexed transactionId);
-
-    event ApprovalToRequestFunding(address indexed walletToFund, address indexed requester);
-
-    event RevokeApprovalToRequestFunding(address indexed walletToFund, address indexed requester);
-
-    // Constructor
 
     // Modifiers
 

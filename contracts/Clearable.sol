@@ -1,7 +1,8 @@
 pragma solidity ^0.5;
 
-import "./libraries/SafeMath.sol";
 import "./Compliant.sol";
+import "./interface/IClearable.sol";
+import "./libraries/SafeMath.sol";
 
 /**
  * @title Clearable
@@ -10,11 +11,9 @@ import "./Compliant.sol";
  * (or someone delegated through an approval) requests the transfer; ii) the token issuer clears the transfer (offchain); and
  * iii) then the token issuer triggers the execution of the transfer, which moves the tokens from the sender to the receiver.
  */
-contract Clearable is Compliant {
+contract Clearable is IClearable, Compliant {
 
     using SafeMath for uint256;
-
-    enum ClearedTransferRequestStatusCode { Nonexistent, Requested, InProcess, Executed, Rejected, Cancelled }
 
     // Data structures (in eternal storage)
 
@@ -42,26 +41,6 @@ contract Clearable is Compliant {
     bytes32 constant private _CLEARED_TRANSFER_STATUS_CODES = "_clearedTransferStatusCodes";
     bytes32 constant private _CLEARED_TRANSFER_IDS_INDEXES =  "_clearedTransferIdsIndexes";
     bytes32 constant private _CLEARED_TRANSFER_APPROVALS =    "_clearedTransferApprovals";
-
-    // Events
-
-    event ClearedTransferRequested(
-        address indexed requester,
-        string  indexed transactionId,
-        address indexed fromWallet,
-        address toWallet,
-        uint256 amount,
-        uint256 index
-    );
-
-    event ClearedTransferRequestInProcess(address requester, string indexed transactionId);
-    event ClearedTransferRequestExecuted(address requester, string indexed transactionId);
-    event ClearedTransferRequestRejected(address requester, string indexed transactionId, string reason);
-    event ClearedTransferRequestCancelled(address requester, string indexed transactionId);
-    event ApprovalToRequestClearedTransfer(address indexed toWalletDebit, address indexed requester);
-    event RevokeApprovalToRequestClearedTransfer(address indexed toWalletDebit, address indexed requester);
-
-    // Constructor
 
     // Modifiers
 
@@ -175,7 +154,7 @@ contract Clearable is Compliant {
         address requester = msg.sender;
         uint256 index = _getClearedTransferIndex(requester, transactionId);
         _setClearedTransferStatus(index, ClearedTransferRequestStatusCode.Cancelled);
-        _finalizeHold(requester, transactionId, HoldStatusCode.ReleasedByNotary);
+        _finalizeHold(requester, transactionId, 0);
         emit ClearedTransferRequestCancelled(requester, transactionId);
         return true;
     }
@@ -224,7 +203,7 @@ contract Clearable is Compliant {
         uint256 amount = _getClearedTransferAmount(index);
         _decreaseBalance(fromWallet, amount);
         _increaseBalance(toWallet, amount);
-        _finalizeHold(requester, transactionId, HoldStatusCode.ExecutedByNotary);
+        _finalizeHold(requester, transactionId, 0);
         _setClearedTransferStatus(index, ClearedTransferRequestStatusCode.Executed);
         emit ClearedTransferRequestExecuted(requester, transactionId);
         return true;
@@ -245,7 +224,7 @@ contract Clearable is Compliant {
         returns (bool)
     {
         uint256 index = _getClearedTransferIndex(requester, transactionId);
-        _finalizeHold(requester, transactionId, HoldStatusCode.ReleasedByNotary);
+        _finalizeHold(requester, transactionId, 0);
         _setClearedTransferStatus(index, ClearedTransferRequestStatusCode.Rejected);
         emit ClearedTransferRequestRejected(requester, transactionId, reason);
         return _setClearedTransferStatus(index, ClearedTransferRequestStatusCode.Rejected);
@@ -402,7 +381,7 @@ contract Clearable is Compliant {
     {
         require(requester == fromWallet || _isApprovedToRequestClearedTransfer(fromWallet, requester), "Not approved to order cleared transfers");
         require(amount >= _availableFunds(fromWallet), "Not enough funds to request cleared transfer");
-        _createHold(requester, transactionId, fromWallet, toWallet, address(0), amount, false, 0); // No notary, as this is going to be managed by the methods
+        _createHold(requester, transactionId, fromWallet, toWallet, address(0), amount, false, 0, 0); // No notary or status, as this is going to be managed by the methods
         pushAddressToArray(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_REQUESTERS, requester);
         pushStringToArray(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_IDS, transactionId);
         pushAddressToArray(CLEARABLE_CONTRACT_NAME, _FROM_WALLETS, fromWallet);

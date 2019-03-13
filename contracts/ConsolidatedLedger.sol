@@ -1,5 +1,6 @@
 pragma solidity ^0.5;
 
+import "./interface/ICOnsolidatedLedger.sol";
 import "./ERC20Ledger.sol";
 import "./HoldsLedger.sol";
 import "./OverdraftsLedger.sol";
@@ -10,7 +11,7 @@ import "./libraries/SafeMath.sol";
  * @dev This contract implements methods to operate balances on a consolidated fashion taking info account
  * ERC20 balances, overdrafts and holds
  */
-contract ConsolidatedLedger is ERC20Ledger, HoldsLedger, OverdraftsLedger {
+contract ConsolidatedLedger is IConsolidatedLedger, ERC20Ledger, HoldsLedger, OverdraftsLedger {
 
     using SafeMath for int256;
     

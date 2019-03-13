@@ -2,6 +2,7 @@ pragma solidity ^0.5;
 
 import "./libraries/SafeMath.sol";
 import "./Compliant.sol";
+import "./interface/IPayoutable.sol";
 
 /**
  * @title Payoutable
@@ -10,11 +11,9 @@ import "./Compliant.sol";
  * "requestFrom" type of method), and requests are executed or rejected by the tokenizing entity (i.e. processed by
  * the owner of the overall contract)
  */
-contract Payoutable is Compliant {
+contract Payoutable is IPayoutable, Compliant {
 
     using SafeMath for uint256;
-
-    enum PayoutRequestStatusCode { Nonexistent, Requested, InProcess, Executed, Rejected, Cancelled }
 
     // Data structures (in eternal storage)
 
@@ -42,31 +41,6 @@ contract Payoutable is Compliant {
     bytes32 constant private _PAYOUT_STATUS_CODES = "_payoutStatusCodes";
     bytes32 constant private _PAYOUT_IDS_INDEXES =  "_payoutIdsIndexes";
     bytes32 constant private _PAYOUT_APPROVALS =    "_payoutApprovals";
-
-    // Events
-
-    event PayoutRequested(
-        address indexed requester,
-        string indexed transactionId,
-        address indexed walletToDebit,
-        uint256 amount,
-        string instructions,
-        uint256 index
-    );
-
-    event PayoutRequestInProcess(address requester, string indexed transactionId);
-
-    event PayoutRequestExecuted(address requester, string indexed transactionId);
-
-    event PayoutRequestRejected(address requester, string indexed transactionId, string reason);
-
-    event PayoutRequestCancelled(address requester, string indexed transactionId);
-
-    event ApprovalToRequestPayout(address indexed walletToDebit, address indexed requester);
-
-    event RevokeApprovalToRequestPayout(address indexed walletToDebit, address indexed requester);
-
-    // Constructor
 
     // Modifiers
 
@@ -169,7 +143,7 @@ contract Payoutable is Compliant {
         address requester = msg.sender;
         uint256 index = _getPayoutIndex(requester, transactionId);
         _setPayoutStatus(index, PayoutRequestStatusCode.Cancelled);
-        _finalizeHold(requester, transactionId, HoldStatusCode.ReleasedByOperator);
+        _finalizeHold(requester, transactionId, 0);
         emit PayoutRequestCancelled(requester, transactionId);
         return true;
     }
@@ -200,7 +174,7 @@ contract Payoutable is Compliant {
         _removeFunds(walletToDebit, amount);
         _increaseBalance(SUSPENSE_WALLET, amount);
         _setPayoutStatus(index, PayoutRequestStatusCode.InProcess);
-        _finalizeHold(requester, transactionId, HoldStatusCode.ReleasedByOperator);
+        _finalizeHold(requester, transactionId, 0);
         emit PayoutRequestInProcess(requester, transactionId);
         return true;
     }
@@ -250,7 +224,7 @@ contract Payoutable is Compliant {
             _decreaseBalance(SUSPENSE_WALLET, amount);
             _addFunds(walletToDebit, amount);
         } else if(status == PayoutRequestStatusCode.Requested) {
-            _finalizeHold(requester, transactionId, HoldStatusCode.ReleasedByOperator);
+            _finalizeHold(requester, transactionId, 0);
         } else {
             require(false, "Payout request is already closed");
         }
@@ -390,7 +364,7 @@ contract Payoutable is Compliant {
     {
         require(requester == walletToDebit || _isApprovedToRequestPayout(walletToDebit, requester), "Not approved to request payout");
         require(amount >= _availableFunds(walletToDebit), "Not enough funds to ask for payout");
-        _createHold(requester, transactionId, walletToDebit, SUSPENSE_WALLET, address(0), amount, false, 0); // No notary, as this is going to be managed by the methods
+        _createHold(requester, transactionId, walletToDebit, SUSPENSE_WALLET, address(0), amount, false, 0, 0); // No notary or status, as this is going to be managed by the methods
         pushAddressToArray(PAYOUTABLE_CONTRACT_NAME, _PAYOUT_REQUESTERS, requester);
         pushStringToArray(PAYOUTABLE_CONTRACT_NAME, _PAYOUT_IDS, transactionId);
         pushAddressToArray(PAYOUTABLE_CONTRACT_NAME, _WALLETS_TO_DEBIT, walletToDebit);

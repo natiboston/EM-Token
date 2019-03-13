@@ -1,8 +1,9 @@
 pragma solidity ^0.5;
 
 import "./Compliant.sol";
+import "./interface/IHoldable.sol";
 
-contract Holdable is Compliant {
+contract Holdable is IHoldable, Compliant {
 
     // Data structures (in eternal storage)
 
@@ -33,6 +34,13 @@ contract Holdable is Compliant {
      * to perform holds on behalf of wallets
      */
     bytes32 constant private _HOLDING_APPROVALS = "_holdingApprovals";
+
+    // Modifiers
+
+    modifier holdActive(address issuer, string memory transactionId) {
+        require (_holdStatus(issuer, transactionId) == uint256(HoldStatusCode.Created), "Hold not active");
+        _;
+    }
 
     // External state-modifying functions
 
@@ -134,24 +142,21 @@ contract Holdable is Compliant {
         holdActive(issuer, transactionId)
         returns (bool)
     {
-        uint256 index;
-        address payer;
-        address payee;
-        address notary;
-        uint256 amount;
-        bool expires;
-        uint256 expiration;
-        HoldStatusCode status;
-        (index, payer, payee, notary, amount, expires, expiration, status) = _holdData(issuer, transactionId);
+        address notary = _holdNotary(issuer, transactionId);
+        bool expires = _holdExpires(issuer, transactionId);
+        uint256 expiration = _holdExpiration(issuer, transactionId);
+        HoldStatusCode finalStatus;
         if(hasRole(msg.sender, OPERATOR_ROLE)) {
-            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ReleasedByOperator);
+            finalStatus = HoldStatusCode.ReleasedByOperator;
         } else if(notary == msg.sender) {
-            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ReleasedByNotary);
+            finalStatus = HoldStatusCode.ReleasedByNotary;
         } else if(expires && block.timestamp >= expiration) {
-            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ReleasedDueToExpiration);
+            finalStatus = HoldStatusCode.ReleasedDueToExpiration;
         } else {
             require(false, "Hold cannot be released");
         }
+        emit HoldReleased(issuer, transactionId, finalStatus);
+        return _finalizeHold(msg.sender, transactionId, uint256(finalStatus));
     }
     
     /**
@@ -167,24 +172,22 @@ contract Holdable is Compliant {
         holdActive(issuer, transactionId)
         returns (bool)
     {
-        uint256 index;
-        address payer;
-        address payee;
-        address notary;
-        uint256 amount;
-        bool expires;
-        uint256 expiration;
-        HoldStatusCode status;
-        (index, payer, payee, notary, amount, expires, expiration, status) = _holdData(issuer, transactionId);
-        _removeFunds(payer, amount);
-        _addFunds(payee, amount);
+        address payer = _holdPayer(issuer, transactionId);
+        address payee = _holdPayee(issuer, transactionId);
+        address notary = _holdNotary(issuer, transactionId);
+        uint256 amount = _holdAmount(issuer, transactionId);
+        HoldStatusCode finalStatus;
         if(hasRole(msg.sender, OPERATOR_ROLE)) {
-            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ExecutedByOperator);
+            finalStatus = HoldStatusCode.ExecutedByOperator;
         } else if(notary == msg.sender) {
-            return _finalizeHold(msg.sender, transactionId, HoldStatusCode.ExecutedByNotary);
+            finalStatus = HoldStatusCode.ExecutedByNotary;
         } else {
             require(false, "Not authorized to execute");
         }
+        _removeFunds(payer, amount);
+        _addFunds(payee, amount);
+        emit HoldExecuted(issuer, transactionId, finalStatus);
+        return _finalizeHold(issuer, transactionId, uint256(finalStatus));
     }
     
     // External view functions
@@ -228,7 +231,14 @@ contract Holdable is Compliant {
             HoldStatusCode status
         )
     {
-        return _holdData(issuer, transactionId);
+        index = _holdIndex(issuer, transactionId);
+        payer = _holdPayer(issuer, transactionId);
+        payee = _holdPayee(issuer, transactionId);
+        notary = _holdNotary(issuer, transactionId);
+        amount = _holdAmount(issuer, transactionId);
+        expires = _holdExpires(issuer, transactionId);
+        expiration = _holdExpiration(issuer, transactionId);
+        status = HoldStatusCode(_holdStatus(issuer, transactionId));
     }
 
     /**
@@ -259,37 +269,16 @@ contract Holdable is Compliant {
     }
 
     /**
-     * @notice Function to retrieve all the information available for a particular hold, from the index
+     * @notice Function to retrieve the ID information of a hold from the index
      * @dev This is mainly used to be able to iterate the list of existing holds
      * @param index the index of the hold (an unique identifier)
      * @return issuer: The address of the original sender of the hold
      * @return transactionId: The ID of the hold in question
-     * @return payer: the wallet from which the tokens will be taken if the hold is executed
-     * @return payee: the wallet to which the tokens will be transferred if the hold is executed
-     * @return notary: the address that will be executing or releasing the hold
-     * @return amount: the amount that will be transferred
-     * @return expires: a flag indicating whether the hold expires or not
-     * @return expiration: (only relevant in case expires==true) the absolute time (block.timestamp) by which the hold will
-     * expire (after that time the hold can be released by anyone)
-     * @return status: the current status of the hold
      * @dev issuer and transactionId are needed to index a hold. This is provided so different issuers can use the same transactionId,
      * as holding is a competitive resource
      */
-    function retrieveHoldData(uint256 index)
-        external view
-        returns (
-            address issuer,
-            string memory transactionId,
-            address payer,
-            address payee,
-            address notary,
-            uint256 amount,
-            bool expires,
-            uint256 expiration,
-            HoldStatusCode status
-        )
-    {
-        return _holdData(index);
+    function holdID(uint256 index) external view returns (address issuer, string memory transactionId) {
+        return _getHoldId(index);
     }
 
     // Private functions
@@ -317,9 +306,10 @@ contract Holdable is Compliant {
     {
         require(payer == msg.sender || _getHoldingApproval(payer, msg.sender), "Requester is not approved to hold");
         require(amount >= _availableFunds(payer), "Not enough funds to hold");
-        return _createHold(requester, transactionId, payer, payee, notary, amount, expires, timeToExpiration);
+        uint256 expiration = block.timestamp.add(timeToExpiration);
+        emit HoldCreated(requester, transactionId, payer, payee, notary, amount, expires, expiration, index);
+        return _createHold(requester, transactionId, payer, payee, notary, amount, expires, expiration, uint256(HoldStatusCode.Created));
     }
-
 
 }
 

@@ -9,16 +9,6 @@ contract HoldsLedger is EternalStorageWrapper {
 
     // Data structures (in eternal storage)
 
-    enum HoldStatusCode {
-        Nonexistent,
-        Created,
-        ExecutedByNotary,
-        ExecutedByOperator,
-        ReleasedByNotary,
-        ReleasedByOperator,
-        ReleasedDueToExpiration
-    }
-
     bytes32 constant private HOLDSLEDGER_CONTRACT_NAME = "HoldsLedger";
 
     /**
@@ -50,28 +40,6 @@ contract HoldsLedger is EternalStorageWrapper {
     bytes32 constant private _BALANCES_ON_HOLD =     "_balancesOnHold";
     bytes32 constant private _TOTAL_SUPPLY_ON_HOLD = "_totalSupplyOnHold";
 
-    // Events
-
-    event HoldCreated(
-        address issuer,
-        string  indexed transactionId,
-        address indexed payer,
-        address payee,
-        address indexed notary,
-        uint256 amount,
-        bool    expires,
-        uint256 expiration,
-        uint256 index
-    ); // By issuer (which can be the payer as well)
-
-    event HoldExecuted(address issuer, string indexed transactionId, HoldStatusCode status); // By notary or by operator
-
-    event HoldReleased(address issuer, string indexed transactionId, HoldStatusCode status); // By issuer), by notary, or due to expiration
-
-    event HoldRenewed(address issuer, string indexed transactionId, uint256 oldExpiration, uint256 newExpiration); // By issuer
-
-    // Constructor
-
     // Modifiers
 
     modifier holdIndexExists(uint256 index) {
@@ -89,8 +57,8 @@ contract HoldsLedger is EternalStorageWrapper {
         _;
     }
 
-    modifier holdActive(address issuer, string memory transactionId) {
-        require (_getHoldStatus(_getHoldIndex(issuer, transactionId)) == HoldStatusCode.Created, "Hold is not active");
+    modifier holdWithStatus(address issuer, string memory transactionId, uint256 status) {
+        require (_getHoldStatus(_getHoldIndex(issuer, transactionId)) == status, "Hold with the wrong status");
         _;
     }
 
@@ -104,76 +72,78 @@ contract HoldsLedger is EternalStorageWrapper {
         address notary,
         uint256 amount,
         bool    expires,
-        uint256 timeToExpiration
+        uint256 expiration,
+        uint256 status
     )
         internal
         returns (uint256 index)
     {
-        uint256 expiration = block.timestamp.add(timeToExpiration);
-        index = _pushNewHold(issuer, transactionId, payer, payee, notary, amount, expires, expiration);
+        index = _pushNewHold(issuer, transactionId, payer, payee, notary, amount, expires, expiration, status);
         _addBalanceOnHold(payer, amount);
-        emit HoldCreated(issuer, transactionId, payer, payee, notary, amount, expires, expiration, index);
     }
 
-    function _finalizeHold(address issuer, string memory transactionId, HoldStatusCode status) internal returns (bool) {
-        require(_getHoldStatus(_getHoldIndex(issuer, transactionId)) == HoldStatusCode.Created, "Hold status should be 'created'");
-        if(status == HoldStatusCode.ExecutedByNotary || status == HoldStatusCode.ExecutedByOperator)
-            emit HoldExecuted(issuer, transactionId, status);
-        else
-            emit HoldReleased(issuer, transactionId, status);
-        address payer = _getHoldPayer(_getHoldIndex(issuer, transactionId));
-        uint256 amount = _getHoldAmount(_getHoldIndex(issuer, transactionId));
+    function _finalizeHold(address issuer, string memory transactionId, uint256 status) internal returns (bool) {
+        uint256 index = _getHoldIndex(issuer, transactionId);
+        address payer = _getHoldPayer(index);
+        uint256 amount = _getHoldAmount(index);
         bool r1 = _substractBalanceOnHold(payer, amount);
-        bool r2 = _setHoldStatus(_getHoldIndex(issuer, transactionId), status);
+        bool r2 = _setHoldStatus(index, status);
         return r1 && r2;
     }
 
     function _holdData(address issuer, string memory transactionId)
         internal view
         returns (
-            uint256        index,
-            address        payer,
-            address        payee,
-            address        notary,
-            uint256        amount,
-            bool           expires,
-            uint256        expiration,
-            HoldStatusCode status
+            uint256 index,
+            address payer,
+            address payee,
+            address notary,
+            uint256 amount,
+            bool    expires,
+            uint256 expiration,
+            uint256 status
         )
     {
         index = _getHoldIndex(issuer, transactionId);
         payer = _getHoldPayer(index);
         payee = _getHoldPayee(index);
-        notary = _getHoldPayee(index);
+        notary = _getHoldNotary(index);
         amount = _getHoldAmount(index);
         expires = _getHoldExpires(index);
         expiration = _getHoldExpiration(index);
         status = _getHoldStatus(index);
     }
 
-    function _holdData(uint256 index)
-        internal view
-        returns (
-            address        issuer,
-            string memory transactionId,
-            address        payer,
-            address        payee,
-            address        notary,
-            uint256        amount,
-            bool           expires,
-            uint256        expiration,
-            HoldStatusCode status
-        )
-    {
-        transactionId = _gettransactionId(index);
-        issuer = _getHoldIssuer(index);
-        payer = _getHoldPayer(index);
-        payee = _getHoldPayee(index);
-        notary = _getHoldPayee(index);
-        amount = _getHoldAmount(index);
-        expires = _getHoldExpires(index);
-        expiration = _getHoldExpiration(index);
-        status = _getHoldStatus(index);
+    function _holdIndex(address issuer, string memory transactionId) internal view returns(uint index) {
+        return _getHoldIndex(issuer, transactionId);
+    }
+
+    function _holdPayer(address issuer, string memory transactionId) internal view returns(address payer) {
+        return _getHoldPayer(_getHoldIndex(issuer, transactionId));
+    }
+
+    function _holdPayee(address issuer, string memory transactionId) internal view returns(address payee) {
+        return _getHoldPayee(_getHoldIndex(issuer, transactionId));
+    }
+
+    function _holdNotary(address issuer, string memory transactionId) internal view returns(address notary) {
+        return _getHoldNotary(_getHoldIndex(issuer, transactionId));
+    }
+
+    function _holdAmount(address issuer, string memory transactionId) internal view returns(uint256 amount) {
+        return _getHoldAmount(_getHoldIndex(issuer, transactionId));
+    }
+
+    function _holdExpires(address issuer, string memory transactionId) internal view returns(bool expires) {
+        return _getHoldExpires(_getHoldIndex(issuer, transactionId));
+    }
+
+    function _holdExpiration(address issuer, string memory transactionId) internal view returns(uint256 expiration) {
+        return _getHoldExpiration(_getHoldIndex(issuer, transactionId));
+    }
+
+    function _holdStatus(address issuer, string memory transactionId) internal view returns (uint256 status) {
+        return _getHoldStatus(_getHoldIndex(issuer, transactionId));
     }
 
     function _manyHolds() internal view returns (uint256 many) {
@@ -188,6 +158,10 @@ contract HoldsLedger is EternalStorageWrapper {
         return _getTotalSupplyOnHold();
     }
 
+    function _getHoldId(uint256 index) internal view returns (address issuer, string memory transactionId) {
+        return (_getHoldIssuer(index), _getTransactionId(index));
+    }
+
     // Private functions
 
     function _getManyHolds() private view returns (uint256 many) {
@@ -198,7 +172,7 @@ contract HoldsLedger is EternalStorageWrapper {
         return getUintFromMapping(HOLDSLEDGER_CONTRACT_NAME, _HOLD_IDS_INDEXES, transactionId);
     }
 
-    function _gettransactionId(uint256 index) private view holdIndexExists(index) returns (string memory) {
+    function _getTransactionId(uint256 index) private view holdIndexExists(index) returns (string memory) {
         return getStringFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_IDS, index);
     }
 
@@ -230,12 +204,12 @@ contract HoldsLedger is EternalStorageWrapper {
         return getUintFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_EXPIRATIONS, index);
     }
 
-    function _getHoldStatus(uint256 index) private view holdIndexExists(index) returns (HoldStatusCode) {
-        return HoldStatusCode(getUintFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_STATUS_CODES, index));
+    function _getHoldStatus(uint256 index) private view holdIndexExists(index) returns (uint256) {
+        return getUintFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_STATUS_CODES, index);
     }
 
-    function _setHoldStatus(uint256 index, HoldStatusCode status) private holdIndexExists(index) returns (bool) {
-        return setUintInArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_STATUS_CODES, index, uint256(status));
+    function _setHoldStatus(uint256 index, uint256 status) private holdIndexExists(index) returns (bool) {
+        return setUintInArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_STATUS_CODES, index, status);
     }
 
     function _getBalanceOnHold(address account) private view returns (uint256) {
@@ -266,7 +240,8 @@ contract HoldsLedger is EternalStorageWrapper {
         address notary,
         uint256 amount,
         bool    expires,
-        uint256 expiration
+        uint256 expiration,
+        uint256 status
     )
         internal
         holdDoesNotExist(issuer, transactionId)
@@ -280,6 +255,7 @@ contract HoldsLedger is EternalStorageWrapper {
         pushUintToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_AMOUNTS, amount);
         pushUintToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_EXPIRATIONS, expiration);
         pushBoolToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_EXPIRES, expires);
+        pushUintToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_STATUS_CODES, status);
         uint256 index = _getManyHolds();
         setUintInDoubleMapping(HOLDSLEDGER_CONTRACT_NAME, _HOLD_IDS_INDEXES, issuer, transactionId, index);
         return index;

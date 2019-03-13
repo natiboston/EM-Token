@@ -2,6 +2,7 @@ pragma solidity ^0.5;
 
 import "./Compliant.sol";
 import "./libraries/SafeMath.sol";
+import "./interface/IERC20.sol";
 
 /**
  * @title Standard ERC20 token
@@ -9,14 +10,9 @@ import "./libraries/SafeMath.sol";
  * @dev Implementation of the basic functions of the standard token
  * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
  */
-contract ERC20 is Compliant {
+contract ERC20 is IERC20, Compliant {
 
     using SafeMath for uint256;
-
-    // Events
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
 
     // External state-modifying functions
 

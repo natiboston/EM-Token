@@ -1,6 +1,7 @@
 pragma solidity ^0.5;
 
 import "./Compliant.sol";
+import "./interface/IOverdraftable.sol";
 import "./libraries/SafeMath.sol";
 
 /**
@@ -8,7 +9,7 @@ import "./libraries/SafeMath.sol";
  * @dev Overdraft lines can only be drawn or restored through internal methods, which are implemented in HoldsLedger.
  * This contract is only valid to set limits and read drawn amounts
  */
-contract Overdraftable is Compliant {
+contract Overdraftable is IOverdraftable, Compliant {
 
     using SafeMath for uint256;
 
@@ -18,8 +19,11 @@ contract Overdraftable is Compliant {
      * @param amount the amount to be added to the current overdraft limit
      * @dev Only the CRO is allowed to do this
      */
-    function increaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) external returns (bool) {
-        return _increaseUnsecuredOverdraftLimit(account, amount);
+    function increaseUnsecuredOverdraftLimit(address account, uint256 amount) external onlyRole(CRO_ROLE) returns (bool) {
+        uint256 oldLimit = _unsecuredOverdraftLimit(account);
+        uint256 newLimit = oldLimit.add(amount);
+        emit UnsecuredOverdraftLimitSet(account, oldLimit, newLimit);
+        return _setUnsecuredOverdraftLimit(account, amount);
     }
 
     /**
@@ -31,8 +35,11 @@ contract Overdraftable is Compliant {
      * margin call of some sort, the primary benefit of this is preventing the user from further drawing from the line
      * @dev Only the CRO is allowed to do this
      */
-    function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) onlyRole(CRO_ROLE) external returns (bool) {
-        return _decreaseUnsecuredOverdraftLimit(account, amount);
+    function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) external onlyRole(CRO_ROLE) returns (bool) {
+        uint256 oldLimit = _unsecuredOverdraftLimit(account);
+        uint256 newLimit = oldLimit.sub(amount);
+        emit UnsecuredOverdraftLimitSet(account, oldLimit, newLimit);
+        return _setUnsecuredOverdraftLimit(account, amount);
     }
 
     // External view functions
