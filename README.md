@@ -74,6 +74,8 @@ event Approval(address indexed owner, address indexed spender, uint256 value);
 
 Note that in this case the ```balanceOf()``` method will only return the token balance amount without taking into account balances on hold or overdraft limits. Therefore a ```transfer``` may not necessarily succeed even if the balance as returned by ```balanceOf()``` is higher than the amount to be transferred, nor may it fail if the balance is low. Further down we will document some methods that retrieve the amount of _available_  funds, as well as the _net_ balance taking into account drawn overdraft lines
 
+TO DO: Check out ERC777 and extend this to comply with it, if appropriate
+
 ### _Holds_
 
 EM Tokens provide the possibility to perform holds on tokens. A hold is created with the following fields:
