@@ -13,33 +13,19 @@ contract Overdraftable is IOverdraftable, Compliant {
 
     using SafeMath for uint256;
 
+    // External functions
+
     /**
      * @notice increaseUnsecuredOverdraftLimit increases the overdraft limit for an account
      * @param account the address of the account
-     * @param amount the amount to be added to the current overdraft limit
+     * @param newLimit the amount to be added to the current overdraft limit
      * @dev Only the CRO is allowed to do this
+     * @dev As of yet, this is not part of the standard EM Token specification
      */
-    function increaseUnsecuredOverdraftLimit(address account, uint256 amount) external onlyRole(CRO_ROLE) returns (bool) {
+    function setUnsecuredOverdraftLimit(address account, uint256 newLimit) external onlyRole(CRO_ROLE) returns (bool) {
         uint256 oldLimit = _unsecuredOverdraftLimit(account);
-        uint256 newLimit = oldLimit.add(amount);
         emit UnsecuredOverdraftLimitSet(account, oldLimit, newLimit);
-        return _setUnsecuredOverdraftLimit(account, amount);
-    }
-
-    /**
-     * @notice decreaseUnsecuredOverdraftLimit decreases the overdraft limit for an account, assuming the drawn amount is
-     * not excessive (i.e. the drawn amount should be below the drawn amount)
-     * @param account the address of the account
-     * @param amount the amount to be substracted from the current overdraft limit
-     * @dev No check is done to see if the limit will become lower than the drawn amount. Although this may result in a
-     * margin call of some sort, the primary benefit of this is preventing the user from further drawing from the line
-     * @dev Only the CRO is allowed to do this
-     */
-    function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) external onlyRole(CRO_ROLE) returns (bool) {
-        uint256 oldLimit = _unsecuredOverdraftLimit(account);
-        uint256 newLimit = oldLimit.sub(amount);
-        emit UnsecuredOverdraftLimitSet(account, oldLimit, newLimit);
-        return _setUnsecuredOverdraftLimit(account, amount);
+        return _setUnsecuredOverdraftLimit(account, newLimit);
     }
 
     // External view functions

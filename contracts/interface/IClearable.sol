@@ -7,8 +7,8 @@ interface IClearable {
     event ClearedTransferRequested(
         address indexed requester,
         string  indexed transactionId,
-        address indexed fromWallet,
-        address toWallet,
+        address indexed from,
+        address to,
         uint256 amount,
         uint256 index
     );
@@ -17,8 +17,8 @@ interface IClearable {
     event ClearedTransferRequestExecuted(address requester, string indexed transactionId);
     event ClearedTransferRequestRejected(address requester, string indexed transactionId, string reason);
     event ClearedTransferRequestCancelled(address requester, string indexed transactionId);
-    event ApprovalToRequestClearedTransfer(address indexed toWalletDebit, address indexed requester);
-    event RevokeApprovalToRequestClearedTransfer(address indexed toWalletDebit, address indexed requester);
+    event ApprovalToRequestClearedTransfer(address indexed wallet, address indexed requester);
+    event RevokeApprovalToRequestClearedTransfer(address indexed wallet, address indexed requester);
 
 
     /**
@@ -40,11 +40,11 @@ interface IClearable {
      * @notice Method for a wallet owner to request cleared transfer from the tokenizer on his/her own behalf
      * @param transactionId The ID of the cleared transfer request, which can then be used to index all the information about
      * the cleared transfer request (together with the address of the sender)
-     * @param toWallet The wallet to which the transfer is directed to
+     * @param to The wallet to which the transfer is directed to
      * @param amount The amount to be transferred
      * @return The index of the entry of the new cleared transfer request in the internal array where it is stored
      */
-    function orderClearedTransfer(string calldata transactionId, address toWallet, uint256 amount)
+    function orderClearedTransfer(string calldata transactionId, address to, uint256 amount)
         external
         returns (uint256 index);
 
@@ -53,15 +53,15 @@ interface IClearable {
      * classical ERC20). The requester needs to be previously approved
      * @param transactionId The ID of the cleared transfer request, which can then be used to index all the information about
      * the cleared transfer request (together with the address of the sender)
-     * @param fromWallet The wallet the funds will be transferred from
-     * @param toWallet The wallet to which the transfer is directed to
+     * @param from The wallet the funds will be transferred from
+     * @param to The wallet to which the transfer is directed to
      * @param amount The amount to be transferred
      * @return The index of the entry of the new cleared transfer request in the internal array where it is stored
      */
     function orderClearedTransferFrom(
         string calldata transactionId,
-        address fromWallet,
-        address toWallet,
+        address from,
+        address to,
         uint256 amount
     )
         external
@@ -92,7 +92,7 @@ interface IClearable {
 
     /**
      * @notice Function to be called by the tokenizer administrator to honor a cleared transfer request. This will execute
-     * the hold and thus transfer the tokens from fromWallet to toWallet
+     * the hold and thus transfer the tokens from from to to
      * @param requester The requester of the cleared transfer request
      * @param transactionId The ID of the cleared transfer request, which can then be used to index all the information about
      * the cleared transfer request (together with the address of the sender)
@@ -116,19 +116,19 @@ interface IClearable {
     
     /**
      * @notice View method to read existing allowances to request payout
-     * @param toWalletDebit The address of the wallet from which the funds will be taken
+     * @param toDebit The address of the wallet from which the funds will be taken
      * @param requester The address that can request cleared transfer on behalf of the wallet owner
      * @return Whether the address is approved or not to request cleared transfer on behalf of the wallet owner
      */
-    function isApprovedToRequestClearedTransfer(address toWalletDebit, address requester) external view returns (bool);
+    function isApprovedToRequestClearedTransfer(address toDebit, address requester) external view returns (bool);
 
     /**
      * @notice Function to retrieve all the information available for a particular cleared transfer request
      * @param requester The requester of the cleared transfer request
      * @param transactionId The ID of the cleared transfer request
      * @return index: the index of the array where the request is stored
-     * @return fromWallet: The address of the wallet from which the funds will be transferred
-     * @return toWallet: The address of the wallet that will receive the funds
+     * @return from: The address of the wallet from which the funds will be transferred
+     * @return to: The address of the wallet that will receive the funds
      * @return amount: the amount of funds requested
      * @return status: the current status of the cleared transfer request
      */
@@ -136,8 +136,8 @@ interface IClearable {
         external view
         returns (
             uint256 index,
-            address fromWallet,
-            address toWallet,
+            address from,
+            address to,
             uint256 amount,
             ClearedTransferRequestStatusCode status
         );

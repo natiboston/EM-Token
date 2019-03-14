@@ -15,8 +15,8 @@ contract HoldsLedger is EternalStorageWrapper {
      * @dev Data structures (implemented in the eternal storage):
      * @dev _HOLD_IDS : string array with hold IDs
      * @dev _HOLD_ISSUERS : address array with the issuers of the holds ("holders")
-     * @dev _HOLD_PAYERS : address array with the payers of the holds
-     * @dev _HOLD_PAYEES : address array with the payees of the holds
+     * @dev _HOLD_FROMS : address array with the payers of the holds
+     * @dev _HOLD_TOS : address array with the payees of the holds
      * @dev _HOLD_NOTARIES : address array with the notaries of the holds
      * @dev _HOLD_AMOUNTS : uint256 array with the amounts of the holds
      * @dev _HOLD_EXPIRES : bool array with the flags that mark whether holds expire or not
@@ -29,8 +29,8 @@ contract HoldsLedger is EternalStorageWrapper {
      */
     bytes32 constant private _HOLD_IDS =             "_holdIds";
     bytes32 constant private _HOLD_ISSUERS =         "_holdIssuers";
-    bytes32 constant private _HOLD_PAYERS =          "_holdPayers";
-    bytes32 constant private _HOLD_PAYEES =          "_holdPayees";
+    bytes32 constant private _HOLD_FROMS =           "_holdFroms";
+    bytes32 constant private _HOLD_TOS =             "_holdTos";
     bytes32 constant private _HOLD_NOTARIES =        "_holdNotaries";
     bytes32 constant private _HOLD_AMOUNTS =         "_holdAmounts";
     bytes32 constant private _HOLD_EXPIRES =         "_holdExpires";
@@ -67,8 +67,8 @@ contract HoldsLedger is EternalStorageWrapper {
     function _createHold(
         address issuer,
         string  memory transactionId,
-        address payer,
-        address payee,
+        address from,
+        address to,
         address notary,
         uint256 amount,
         bool    expires,
@@ -78,15 +78,15 @@ contract HoldsLedger is EternalStorageWrapper {
         internal
         returns (uint256 index)
     {
-        index = _pushNewHold(issuer, transactionId, payer, payee, notary, amount, expires, expiration, status);
-        _addBalanceOnHold(payer, amount);
+        index = _pushNewHold(issuer, transactionId, from, to, notary, amount, expires, expiration, status);
+        _addBalanceOnHold(from, amount);
     }
 
     function _finalizeHold(address issuer, string memory transactionId, uint256 status) internal returns (bool) {
         uint256 index = _getHoldIndex(issuer, transactionId);
-        address payer = _getHoldPayer(index);
+        address from = _getHoldFrom(index);
         uint256 amount = _getHoldAmount(index);
-        bool r1 = _substractBalanceOnHold(payer, amount);
+        bool r1 = _substractBalanceOnHold(from, amount);
         bool r2 = _setHoldStatus(index, status);
         return r1 && r2;
     }
@@ -95,8 +95,8 @@ contract HoldsLedger is EternalStorageWrapper {
         internal view
         returns (
             uint256 index,
-            address payer,
-            address payee,
+            address from,
+            address to,
             address notary,
             uint256 amount,
             bool    expires,
@@ -105,8 +105,8 @@ contract HoldsLedger is EternalStorageWrapper {
         )
     {
         index = _getHoldIndex(issuer, transactionId);
-        payer = _getHoldPayer(index);
-        payee = _getHoldPayee(index);
+        from = _getHoldFrom(index);
+        to = _getHoldTo(index);
         notary = _getHoldNotary(index);
         amount = _getHoldAmount(index);
         expires = _getHoldExpires(index);
@@ -118,12 +118,12 @@ contract HoldsLedger is EternalStorageWrapper {
         return _getHoldIndex(issuer, transactionId);
     }
 
-    function _holdPayer(address issuer, string memory transactionId) internal view returns(address payer) {
-        return _getHoldPayer(_getHoldIndex(issuer, transactionId));
+    function _holdFrom(address issuer, string memory transactionId) internal view returns(address from) {
+        return _getHoldFrom(_getHoldIndex(issuer, transactionId));
     }
 
-    function _holdPayee(address issuer, string memory transactionId) internal view returns(address payee) {
-        return _getHoldPayee(_getHoldIndex(issuer, transactionId));
+    function _holdTo(address issuer, string memory transactionId) internal view returns(address to) {
+        return _getHoldTo(_getHoldIndex(issuer, transactionId));
     }
 
     function _holdNotary(address issuer, string memory transactionId) internal view returns(address notary) {
@@ -184,12 +184,12 @@ contract HoldsLedger is EternalStorageWrapper {
         return getAddressFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_ISSUERS, index);
     }
 
-    function _getHoldPayer(uint256 index) private view holdIndexExists(index) returns (address) {
-        return getAddressFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_PAYERS, index);
+    function _getHoldFrom(uint256 index) private view holdIndexExists(index) returns (address) {
+        return getAddressFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_FROMS, index);
     }
 
-    function _getHoldPayee(uint256 index) private view holdIndexExists(index) returns (address) {
-        return getAddressFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_PAYEES, index);
+    function _getHoldTo(uint256 index) private view holdIndexExists(index) returns (address) {
+        return getAddressFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_TOS, index);
     }
 
     function _getHoldNotary(uint256 index) private view holdIndexExists(index) returns (address) {
@@ -243,8 +243,8 @@ contract HoldsLedger is EternalStorageWrapper {
     function _pushNewHold(
         address issuer,
         string  memory transactionId,
-        address payer,
-        address payee,
+        address from,
+        address to,
         address notary,
         uint256 amount,
         bool    expires,
@@ -257,8 +257,8 @@ contract HoldsLedger is EternalStorageWrapper {
     {
         pushStringToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_IDS, transactionId);
         pushAddressToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_ISSUERS, issuer);
-        pushAddressToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_PAYERS, payer);
-        pushAddressToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_PAYEES, payee);
+        pushAddressToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_FROMS, from);
+        pushAddressToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_TOS, to);
         pushAddressToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_NOTARIES, notary);
         pushUintToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_AMOUNTS, amount);
         pushUintToArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_EXPIRATIONS, expiration);

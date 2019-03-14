@@ -35,7 +35,7 @@ The EM Token is thus different from other tokens commonly referred to as "stable
 
 ## Data types, methods and events (minimal standard implementation)
 
-The EM Token standard specifies a set of data types, methods and events that ensure interoperability between different implementations. All these elements are included and described in the interface/I*.sol files. The following picture schamtically describes the hierarchy of these interface files:
+The EM Token standard specifies a set of data types, methods and events that ensure interoperability between different implementations. All these elements are included and described in the ```interface/I*.sol``` files. The following picture schamtically describes the hierarchy of these interface files:
 
 ![EM Token standard structure](./diagrams/standard_structure.png?raw=true "EM Token standard structure")
 
@@ -79,8 +79,8 @@ Note that in this case the ```balanceOf()``` method will only return the token b
 EM Tokens provide the possibility to perform holds on tokens. A hold is created with the following fields:
 * **issuer**: the address that issues the hold, be it the wallet owner or an approved holder
 * **transactionId**: an unique transaction ID provided by the holder to identify the hold throughout its life cycle
-* **payer**: the wallet from which the tokens will be transferred in case the hold is executed
-* **payee**: the wallet that will receive the tokens in case the hold is executed
+* **from**: the wallet from which the tokens will be transferred in case the hold is executed (i.e. the payer)
+* **to**: the wallet that will receive the tokens in case the hold is executed (i.e. the payee)
 * **notary**: the address that will either execute or release the hold (after checking whatever condition)
 * **amount**: the amount of tokens that will be transferred
 * **expires**: a flag indicating whether the hold will have an expiration time or not
@@ -103,13 +103,13 @@ Note that approvals are yes or no, without allowances (as in ERC20's approve met
 The key methods are ```hold``` and ```holdFrom```, which create holds on behalf of payers:
 
 ```
-function hold(string calldata transactionId, address payee, address notary, uint256 amount, bool expires, uint256 timeToExpiration) external returns (uint256 index);
-function holdFrom(string calldata transactionId, address payer, address payee, address notary, uint256 amount, bool expires, uint256 timeToExpiration) external returns (uint256 index);
+function hold(string calldata transactionId, address to, address notary, uint256 amount, bool expires, uint256 timeToExpiration) external returns (uint256 index);
+function holdFrom(string calldata transactionId, address from, address to, address notary, uint256 amount, bool expires, uint256 timeToExpiration) external returns (uint256 index);
 ```
 
 Unique transactionIDs are to be provided by the issuer of the hold. Internally, keys are to be built by hashing the address of the issuer and the transactionId, which therefore supports the possibility of different issuers of holds using the same transactionId.
 
-Once the hold has been created, only the notary can either release or execute the hold within the expiration period, and the issuer can also extend the expiration time of the hold:
+Once the hold has been created, the hold can either be released (i.e. closed without further consequences, thus making the locked funds again available for transactions) or executed (i.e. executing the transfer between the payer and the payee). The issuer of the hold can also renew the hold (i.e. adding more time to the current expiration date):
 
 ```
 function releaseHold(address issuer, string calldata transactionId) external returns (bool);
@@ -117,13 +117,23 @@ function executeHold(address issuer, string calldata transactionId) external ret
 function renewHold(string calldata transactionId, uint256 timeToExpirationFromNow) external returns (bool);
 ```
 
-If the hold can expire (```expires==true```), then the payer, the payee, the notary or the operator will be able to release the hold after the expiration time. Expired holds cannot be executed or renewed. Also, the operator / owner of the token contract can also execute or release the hold
+The hold can be released (i.e. not executed) in four possible ways:
+* By the notary
+* By the operator or owner
+* By the payee (as a way to reject the projected transfer)
+* By the issuer, but only after the expiration time
+
+The hold can be executed in two possible ways:
+* By the notary (the normal)
+* By the operator (e.g. in emergency cases)
+
+The hold cannot be executed or renewed after expiration by any party. It can only be released in order to become closed.
 
 Also, some ```view``` methods are provided to retrieve information about holds:
 
 ```
 function isApprovedToHold(address wallet, address holder) external view returns (bool);
-function retrieveHoldData(address issuer, string calldata transactionId) external view returns (uint256 index, address payer, address payee, address notary, uint256 amount, bool expires, uint256 expiration, HoldStatusCode status);
+function retrieveHoldData(address issuer, string calldata transactionId) external view returns (uint256 index, address from, address to, address notary, uint256 amount, bool expires, uint256 expiration, HoldStatusCode status);
 function balanceOnHold(address account) external view returns (uint256);
 function totalSupplyOnHold() external view returns (uint256);
 ```
@@ -133,7 +143,7 @@ function totalSupplyOnHold() external view returns (uint256);
 A number of events are to be sent as well:
 
 ```
-event HoldCreated(address issuer, string indexed transactionId, address indexed payer, address payee, address indexed notary, uint256 amount, bool expires, uint256 expiration, uint256 index );
+event HoldCreated(address issuer, string indexed transactionId, address indexed from, address to, address indexed notary, uint256 amount, bool expires, uint256 expiration, uint256 index );
 event HoldExecuted(address issuer, string indexed transactionId, HoldStatusCode status);
 event HoldReleased(address issuer, string indexed transactionId, HoldStatusCode status);
 event HoldRenewed(address issuer, string indexed transactionId, uint256 oldExpiration, uint256 newExpiration);
@@ -141,14 +151,7 @@ event HoldRenewed(address issuer, string indexed transactionId, uint256 oldExpir
 
 ### _Overdrafts_
 
-The EM Token implements the possibility of token balances to be negative through the implementation of unsecured overdraft lines subject to limits to be set by a CRO:
-
-```
-function increaseUnsecuredOverdraftLimit(address account, uint256 amount) external returns (bool);
-function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) external returns (bool);
-```
-
-Changes in overdraft limits results in sending events:
+The EM Token implements the possibility of token balances to be negative through the implementation of unsecured overdraft lines subject to limits to be set by a CRO. Changes in overdraft limits results in sending events:
 
 ```
 event UnsecuredOverdraftLimitSet(address indexed account, uint256 oldLimit, uint256 newLimit);
@@ -178,8 +181,8 @@ function revokeApprovalToRequestClearedTransfer(address requester) external retu
 Cleared transfers are then submitted in a similar fashion to normal (ERC20) transfers, but using an unique identifier similar to the case of transactionIds in holds (again, internally the keys are built from the address of the requester and the transactionId). Upon submission of the cleared transfer request, a hold is performed on the ```fromWallet``` to secure the funds that will be transferred:
 
 ```
-function orderClearedTransfer(string calldata transactionId, address toWallet, uint256 amount) external returns (uint256 index);
-function orderClearedTransferFrom(string calldata transactionId, address fromWallet, address toWallet, uint256 amount) external returns (uint256 index);
+function orderClearedTransfer(string calldata transactionId, address to, uint256 amount) external returns (uint256 index);
+function orderClearedTransferFrom(string calldata transactionId, address from, address to, uint256 amount) external returns (uint256 index);
 ```
 
 Right after the transfer has been ordered (status is ```Requested```), the issuer can still cancel the transfer:
@@ -196,7 +199,7 @@ The token contract owner / operator has then methods to manage the workflow proc
 function processClearedTransferRequest(address requester, string calldata transactionId) external returns (bool);
 ```
 
-* The ```executeClearedTransferRequest``` method allows the operator to approve the execution of the transfer, which effectively triggers the execution of the hold, which then moves the token from the ```fromWallet``` to the ```toWallet```:
+* The ```executeClearedTransferRequest``` method allows the operator to approve the execution of the transfer, which effectively triggers the execution of the hold, which then moves the token from the ```from``` to the ```to```:
 
 ```
 function executeClearedTransferRequest(address requester, string calldata transactionId) external returns (bool);
@@ -211,8 +214,8 @@ function rejectClearedTransferRequest(address requester, string calldata transac
 Some ```view``` methods are also provided :
 
 ```
-function isApprovedToRequestClearedTransfer(address toWalletDebit, address requester) external view returns (bool);
-function retrieveClearedTransferData(address requester, string calldata transactionId) external view returns (uint256 index, address fromWallet, address toWallet, uint256 amount, ClearedTransferRequestStatusCode status );
+function isApprovedToRequestClearedTransfer(address wallet, address requester) external view returns (bool);
+function retrieveClearedTransferData(address requester, string calldata transactionId) external view returns (uint256 index, address from, address to, uint256 amount, ClearedTransferRequestStatusCode status );
 ```
 
 A number of events are also casted on eventful transactions:
@@ -223,8 +226,8 @@ event ClearedTransferRequestInProcess(address requester, string indexed transact
 event ClearedTransferRequestExecuted(address requester, string indexed transactionId);
 event ClearedTransferRequestRejected(address requester, string indexed transactionId, string reason);
 event ClearedTransferRequestCancelled(address requester, string indexed transactionId);
-event ApprovalToRequestClearedTransfer(address indexed toWalletDebit, address indexed requester);
-event RevokeApprovalToRequestClearedTransfer(address indexed toWalletDebit, address indexed requester);
+event ApprovalToRequestClearedTransfer(address indexed wallet, address indexed requester);
+event RevokeApprovalToRequestClearedTransfer(address indexed wallet, address indexed requester);
 ```
 
 ### _Funding_
@@ -334,8 +337,8 @@ In EM Token, all user-initiated methods should be checked from a compliance poin
 function checkTransfer(address from, address to, uint256 value) external view returns (bool canDo, string memory reason);
 function checkApprove(address allower, address spender, uint256 value) external view returns (bool canDo, string memory reason);
 
-function checkHold(address payer, address payee, address notary, uint256 value) external view returns (bool canDo, string memory reason);
-function checkApproveToHold(address payer, address holder) external view returns (bool canDo, string memory reason);
+function checkHold(address from, address to, address notary, uint256 value) external view returns (bool canDo, string memory reason);
+function checkApproveToHold(address from, address holder) external view returns (bool canDo, string memory reason);
 
 function checkApproveToOrderClearedTransfer(address fromWallet, address requester) external view returns (bool canDo, string memory reason);
 function checkOrderClearedTransfer(address fromWallet, address toWallet, uint256 value) external view returns (bool canDo, string memory reason);
@@ -396,8 +399,6 @@ These implementation details are not part of the standard, although they can be 
 ## To Do's:
 
 * TO DO: propose a new name for ```transactionId```, so it is not confused with Ethereum transactions
-* TO DO: change ```payer``` and ```payee``` for ```from``` and ```to```
 * TO DO: consider adding roles to the standard
 * TO DO: Check out ERC777 and extend this to comply with it, if appropriate
 * TO DO: add interest payments and out-of-limit penalties
-* TO DO: add a ```ReleasedByTarget``` status for holds, plus the possibility for payees of holds to release holds (as a way to reject the subsequent transfert)

@@ -6,6 +6,8 @@ import "./libraries/SafeMath.sol";
 /**
  * @title OverdraftsLedger
  *
+ * @notice This contract implements the core data elements to support overdraft limits, drawn amounts, and interest
+ * payments
  * @dev This contract implements the core elements of the ledger to support overdraft lines
  * - Private data (all core data is private, not internal)
  * - Internal functions that annotate this data
@@ -26,6 +28,7 @@ contract OverdraftsLedger is EternalStorageWrapper {
      * @dev _UNSECURED_OVERDRAFT_LIMITS : mapping (address => uint256) storing the overdraft limits (unsecured)
      * @dev _OVERDRAFTS_DRAWN : mapping (address => uint256) storing the drawn overdraft limits
      * @dev _TOTAL_OVERDRAFT_DRAWN : uint256 with the total amounts drawn in overdraft (analogous to totalSupply in ERC20)
+     * @dev 
      */
     bytes32 constant private _UNSECURED_OVERDRAFT_LIMITS = "_unsecuredOverdraftsLimits";
     bytes32 constant private _DRAWN_AMOUNTS = "_drawnAmounts";

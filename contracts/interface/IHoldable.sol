@@ -8,15 +8,16 @@ interface IHoldable {
         ExecutedByNotary,
         ExecutedByOperator,
         ReleasedByNotary,
+        ReleasedByPayee,
         ReleasedByOperator,
-        ReleasedDueToExpiration
+        ReleasedBySenderAfterExpiration
     }
 
     event HoldCreated(
         address issuer,
         string  indexed transactionId,
-        address indexed payer,
-        address payee,
+        address indexed from,
+        address to,
         address indexed notary,
         uint256 amount,
         bool    expires,
@@ -45,12 +46,13 @@ interface IHoldable {
     function revokeApprovalToHold(address holder) external returns (bool);
 
     /**
-     * @notice Function to perform a hold on behalf of a wallet owner (the sender) in favor of another wallet owner (the
-     * "payee"), and specifying a notary who will be responsable to either execute or release the transfer
+     * @notice Function to perform a hold on behalf of a wallet owner (the payer, who is the sender of the transaction) in
+     * favor of another wallet owner (the payee), and specifying a notary who will be responsable to either execute or
+     * release the transfer
      * @param transactionId An unique ID to identify the hold. Internally IDs will be stored together with the addresses
      * issuing the holds (on a mapping (address => mapping (string => XXX ))), so the same transactionId can be used by many
      * different holders. This is provided assuming that the hold functionality is a competitive resource
-     * @param payee The address to which the tokens are to be paid (if the hold is executed)
+     * @param to The address of the payee, to which the tokens are to be paid (if the hold is executed)
      * @param notary The address of the notary who is going to determine whether the hold is to be executed or released
      * @param amount The amount to be transferred
      * @param expires A flag specifying whether the hold can expire or not
@@ -61,7 +63,7 @@ interface IHoldable {
      */
     function hold(
         string  calldata transactionId,
-        address payee,
+        address to,
         address notary,
         uint256 amount,
         bool    expires,
@@ -71,13 +73,14 @@ interface IHoldable {
         returns (uint256 index);
 
     /**
-     * @notice Function to perform a hold on behalf of a wallet owner (the "payer") in favor of another wallet owner (the
-     * "payee"), and specifying a notary who will be responsable to either execute or release the transfer
+     * @notice Function to perform a hold on behalf of a wallet owner (the payer, entered in the "from" address) in favor of
+     * another wallet owner (the payee, entered in the "to" address), and specifying a notary who will be responsable to either
+     * execute or release the transfer
      * @param transactionId An unique ID to identify the hold. Internally IDs will be stored together with the addresses
      * issuing the holds (on a mapping (address => mapping (string => XXX ))), so the same transactionId can be used by many
      * different holders. This is provided assuming that the hold functionality is a competitive resource
-     * @param payer The address from which the tokens are to be taken (if the hold is executed)
-     * @param payee The address to which the tokens are to be paid (if the hold is executed)
+     * @param from The address of the payer, from which the tokens are to be taken (if the hold is executed)
+     * @param to The address of the payee, to which the tokens are to be paid (if the hold is executed)
      * @param notary The address of the notary who is going to determine whether the hold is to be executed or released
      * @param amount The amount to be transferred
      * @param expires A flag specifying whether the hold can expire or not
@@ -88,8 +91,8 @@ interface IHoldable {
      */
     function holdFrom(
         string  calldata transactionId,
-        address payer,
-        address payee,
+        address from,
+        address to,
         address notary,
         uint256 amount,
         bool    expires,
@@ -127,7 +130,7 @@ interface IHoldable {
 
     /**
      * @notice Returns whether an address is approved to submit holds on behalf of other wallets
-     * @param wallet The wallet on which the holds would be performed (i.e. the "payer")
+     * @param wallet The wallet on which the holds would be performed (i.e. the payer)
      * @param holder The address approved to hold on behalf of the wallet owner
      * @return Whether the holder is approved or not to hold on behalf of the wallet owner
      */
@@ -138,8 +141,8 @@ interface IHoldable {
      * @param issuer The address of the original sender of the hold
      * @param transactionId The ID of the hold in question
      * @return index: the index of the hold (an unique identifier)
-     * @return payer: the wallet from which the tokens will be taken if the hold is executed
-     * @return payee: the wallet to which the tokens will be transferred if the hold is executed
+     * @return from: the wallet from which the tokens will be taken if the hold is executed
+     * @return to: the wallet to which the tokens will be transferred if the hold is executed
      * @return notary: the address that will be executing or releasing the hold
      * @return amount: the amount that will be transferred
      * @return expires: a flag indicating whether the hold expires or not
@@ -153,8 +156,8 @@ interface IHoldable {
         external view
         returns (
             uint256 index,
-            address payer,
-            address payee,
+            address from,
+            address to,
             address notary,
             uint256 amount,
             bool    expires,

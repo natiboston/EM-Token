@@ -84,9 +84,9 @@ contract Clearable is IClearable, Compliant {
      * @param requester The address to be approved as potential issuer of cleared transfer requests
      */
     function approveToRequestClearedTransfer(address requester) external returns (bool) {
-        address fromWallet = msg.sender;
-        _check(_checkApproveToOrderClearedTransfer, fromWallet, requester);
-        return _approveToRequestClearedTransfer(fromWallet, requester);
+        address from = msg.sender;
+        _check(_checkApproveToOrderClearedTransfer, from, requester);
+        return _approveToRequestClearedTransfer(from, requester);
     }
 
     /**
@@ -95,26 +95,26 @@ contract Clearable is IClearable, Compliant {
      * @param requester The address to be revoked as potential issuer of cleared transfer requests
      */
     function revokeApprovalToRequestClearedTransfer(address requester) external returns (bool) {
-        address fromWallet = msg.sender;
-        return _revokeApprovalToRequestClearedTransfer(fromWallet, requester);
+        address from = msg.sender;
+        return _revokeApprovalToRequestClearedTransfer(from, requester);
     }
 
     /**
      * @notice Method for a wallet owner to request cleared transfer from the tokenizer on his/her own behalf
      * @param transactionId The ID of the cleared transfer request, which can then be used to index all the information about
      * the cleared transfer request (together with the address of the sender)
-     * @param toWallet The wallet to which the transfer is directed to
+     * @param to The wallet to which the transfer is directed to
      * @param amount The amount to be transferred
      * @return The index of the entry of the new cleared transfer request in the internal array where it is stored
      */
-    function orderClearedTransfer(string calldata transactionId, address toWallet, uint256 amount)
+    function orderClearedTransfer(string calldata transactionId, address to, uint256 amount)
         external
         returns (uint256 index)
     {
         address requester = msg.sender;
-        address fromWallet = msg.sender;
-        _check(_checkOrderClearedTransfer, fromWallet, toWallet, amount);
-        index = _createClearedTransferRequest(requester, transactionId, fromWallet, toWallet, amount);
+        address from = msg.sender;
+        _check(_checkOrderClearedTransfer, from, to, amount);
+        index = _createClearedTransferRequest(requester, transactionId, from, to, amount);
     }
 
     /**
@@ -122,23 +122,23 @@ contract Clearable is IClearable, Compliant {
      * classical ERC20). The requester needs to be previously approved
      * @param transactionId The ID of the cleared transfer request, which can then be used to index all the information about
      * the cleared transfer request (together with the address of the sender)
-     * @param fromWallet The wallet the funds will be transferred from
-     * @param toWallet The wallet to which the transfer is directed to
+     * @param from The wallet the funds will be transferred from
+     * @param to The wallet to which the transfer is directed to
      * @param amount The amount to be transferred
      * @return The index of the entry of the new cleared transfer request in the internal array where it is stored
      */
     function orderClearedTransferFrom(
         string calldata transactionId,
-        address fromWallet,
-        address toWallet,
+        address from,
+        address to,
         uint256 amount
     )
         external
         returns (uint256 index)
     {
         address requester = msg.sender;
-        _check(_checkOrderClearedTransfer, fromWallet, toWallet, amount);
-        index = _createClearedTransferRequest(requester, transactionId, fromWallet, toWallet, amount);
+        _check(_checkOrderClearedTransfer, from, to, amount);
+        index = _createClearedTransferRequest(requester, transactionId, from, to, amount);
     }
 
     /**
@@ -185,7 +185,7 @@ contract Clearable is IClearable, Compliant {
 
     /**
      * @notice Function to be called by the tokenizer administrator to honor a cleared transfer request. This will execute
-     * the hold and thus transfer the tokens from fromWallet to toWallet
+     * the hold and thus transfer the tokens from from to to
      * @param requester The requester of the cleared transfer request
      * @param transactionId The ID of the cleared transfer request, which can then be used to index all the information about
      * the cleared transfer request (together with the address of the sender)
@@ -198,11 +198,11 @@ contract Clearable is IClearable, Compliant {
         returns (bool)
     {
         uint256 index = _getClearedTransferIndex(requester, transactionId);
-        address fromWallet = _getFromWallet(index);
-        address toWallet = _getToWallet(index);
+        address from = _getFrom(index);
+        address to = _getTo(index);
         uint256 amount = _getClearedTransferAmount(index);
-        _decreaseBalance(fromWallet, amount);
-        _increaseBalance(toWallet, amount);
+        _decreaseBalance(from, amount);
+        _increaseBalance(to, amount);
         _finalizeHold(requester, transactionId, 0);
         _setClearedTransferStatus(index, ClearedTransferRequestStatusCode.Executed);
         emit ClearedTransferRequestExecuted(requester, transactionId);
@@ -234,12 +234,12 @@ contract Clearable is IClearable, Compliant {
     
     /**
      * @notice View method to read existing allowances to request payout
-     * @param toWalletDebit The address of the wallet from which the funds will be taken
+     * @param toDebit The address of the wallet from which the funds will be taken
      * @param requester The address that can request cleared transfer on behalf of the wallet owner
      * @return Whether the address is approved or not to request cleared transfer on behalf of the wallet owner
      */
-    function isApprovedToRequestClearedTransfer(address toWalletDebit, address requester) external view returns (bool) {
-        return _isApprovedToRequestClearedTransfer(toWalletDebit, requester);
+    function isApprovedToRequestClearedTransfer(address toDebit, address requester) external view returns (bool) {
+        return _isApprovedToRequestClearedTransfer(toDebit, requester);
     }
 
     /**
@@ -247,8 +247,8 @@ contract Clearable is IClearable, Compliant {
      * @param requester The requester of the cleared transfer request
      * @param transactionId The ID of the cleared transfer request
      * @return index: the index of the array where the request is stored
-     * @return fromWallet: The address of the wallet from which the funds will be transferred
-     * @return toWallet: The address of the wallet that will receive the funds
+     * @return from: The address of the wallet from which the funds will be transferred
+     * @return to: The address of the wallet that will receive the funds
      * @return amount: the amount of funds requested
      * @return status: the current status of the cleared transfer request
      */
@@ -256,15 +256,15 @@ contract Clearable is IClearable, Compliant {
         external view
         returns (
             uint256 index,
-            address fromWallet,
-            address toWallet,
+            address from,
+            address to,
             uint256 amount,
             ClearedTransferRequestStatusCode status
         )
     {
         index = _getClearedTransferIndex(requester, transactionId);
-        fromWallet = _getFromWallet(index);
-        toWallet = _getToWallet(index);
+        from = _getFrom(index);
+        to = _getTo(index);
         amount = _getClearedTransferAmount(index);
         status = _getClearedTransferStatus(index);
     }
@@ -276,7 +276,7 @@ contract Clearable is IClearable, Compliant {
      * @param index The index of the cleared transfer request
      * @return requester: address that issued the cleared transfer request
      * @return transactionId: the ID of the cleared transfer request (from this requester)
-     * @return toWalletDebit: The address of the wallet from which the funds will be taken
+     * @return toDebit: The address of the wallet from which the funds will be taken
      * @return amount: the amount of funds requested
      * @return instructions: the routing instructions to determine the destination of the funds being requested
      * @return status: the current status of the cleared transfer request
@@ -286,16 +286,16 @@ contract Clearable is IClearable, Compliant {
         returns (
             address requester,
             string memory transactionId,
-            address fromWallet,
-            address toWallet,
+            address from,
+            address to,
             uint256 amount,
             ClearedTransferRequestStatusCode status
         )
     {
         requester = _getClearedTransferRequester(index);
         transactionId = _gettransactionId(index);
-        fromWallet = _getFromWallet(index);
-        toWallet = _getToWallet(index);
+        from = _getFrom(index);
+        to = _getTo(index);
         amount = _getClearedTransferAmount(index);
         status = _getClearedTransferStatus(index);
     }
@@ -311,18 +311,18 @@ contract Clearable is IClearable, Compliant {
 
     // Private functions
 
-    function _approveToRequestClearedTransfer(address fromWallet, address requester) private returns (bool) {
-        emit ApprovalToRequestClearedTransfer(fromWallet, requester);
-        return setBoolInDoubleMapping(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_APPROVALS, fromWallet, requester, true);
+    function _approveToRequestClearedTransfer(address wallet, address requester) private returns (bool) {
+        emit ApprovalToRequestClearedTransfer(wallet, requester);
+        return setBoolInDoubleMapping(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_APPROVALS, wallet, requester, true);
     }
 
-    function _revokeApprovalToRequestClearedTransfer(address fromWallet, address requester) private returns (bool) {
-        emit RevokeApprovalToRequestClearedTransfer(fromWallet, requester);
-        return setBoolInDoubleMapping(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_APPROVALS, fromWallet, requester, false);
+    function _revokeApprovalToRequestClearedTransfer(address wallet, address requester) private returns (bool) {
+        emit RevokeApprovalToRequestClearedTransfer(wallet, requester);
+        return setBoolInDoubleMapping(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_APPROVALS, wallet, requester, false);
     }
 
-    function _isApprovedToRequestClearedTransfer(address fromWallet, address requester) public view returns (bool){
-        return getBoolFromDoubleMapping(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_APPROVALS, fromWallet, requester);
+    function _isApprovedToRequestClearedTransfer(address wallet, address requester) public view returns (bool){
+        return getBoolFromDoubleMapping(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_APPROVALS, wallet, requester);
     }
 
     function _manyClearedTransferRequests() private view returns (uint256 many) {
@@ -348,12 +348,12 @@ contract Clearable is IClearable, Compliant {
         transactionId = getStringFromArray(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_IDS_INDEXES, index);
     }
 
-    function _getFromWallet(uint256 index) private view clearedTransferRequestIndexExists(index) returns (address fromWallet) {
-        fromWallet = getAddressFromArray(CLEARABLE_CONTRACT_NAME, _FROM_WALLETS, index);
+    function _getFrom(uint256 index) private view clearedTransferRequestIndexExists(index) returns (address from) {
+        from = getAddressFromArray(CLEARABLE_CONTRACT_NAME, _FROM_WALLETS, index);
     }
 
-    function _getToWallet(uint256 index) private view clearedTransferRequestIndexExists(index) returns (address toWallet) {
-        toWallet = getAddressFromArray(CLEARABLE_CONTRACT_NAME, _TO_WALLETS, index);
+    function _getTo(uint256 index) private view clearedTransferRequestIndexExists(index) returns (address to) {
+        to = getAddressFromArray(CLEARABLE_CONTRACT_NAME, _TO_WALLETS, index);
     }
 
     function _getClearedTransferAmount(uint256 index) private view clearedTransferRequestIndexExists(index) returns (uint256 amount) {
@@ -371,26 +371,26 @@ contract Clearable is IClearable, Compliant {
     function _createClearedTransferRequest(
         address requester,
         string memory transactionId,
-        address fromWallet,
-        address toWallet,
+        address from,
+        address to,
         uint256 amount
     )
         private
         clearedTransferRequestDoesNotExist(requester, transactionId)
         returns (uint256 index)
     {
-        require(requester == fromWallet || _isApprovedToRequestClearedTransfer(fromWallet, requester), "Not approved to order cleared transfers");
-        require(amount >= _availableFunds(fromWallet), "Not enough funds to request cleared transfer");
-        _createHold(requester, transactionId, fromWallet, toWallet, address(0), amount, false, 0, 0); // No notary or status, as this is going to be managed by the methods
+        require(requester == from || _isApprovedToRequestClearedTransfer(from, requester), "Not approved to order cleared transfers");
+        require(amount >= _availableFunds(from), "Not enough funds to request cleared transfer");
+        _createHold(requester, transactionId, from, to, address(0), amount, false, 0, 0); // No notary or status, as this is going to be managed by the methods
         pushAddressToArray(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_REQUESTERS, requester);
         pushStringToArray(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_IDS, transactionId);
-        pushAddressToArray(CLEARABLE_CONTRACT_NAME, _FROM_WALLETS, fromWallet);
-        pushAddressToArray(CLEARABLE_CONTRACT_NAME, _TO_WALLETS, toWallet);
+        pushAddressToArray(CLEARABLE_CONTRACT_NAME, _FROM_WALLETS, from);
+        pushAddressToArray(CLEARABLE_CONTRACT_NAME, _TO_WALLETS, to);
         pushUintToArray(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_AMOUNTS, amount);
         pushUintToArray(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_STATUS_CODES, uint256(ClearedTransferRequestStatusCode.Requested));
         index = _manyClearedTransferRequests();
         setUintInDoubleMapping(CLEARABLE_CONTRACT_NAME, _CLEARED_TRANSFER_IDS_INDEXES, requester, transactionId, index);
-        emit ClearedTransferRequested(requester, transactionId, fromWallet, toWallet, amount, index);
+        emit ClearedTransferRequested(requester, transactionId, from, to, amount, index);
         return index;
     }
 
