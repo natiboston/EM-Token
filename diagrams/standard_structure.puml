@@ -59,6 +59,7 @@ class IHoldable {
   {method}+holdFrom()
   {method}+releaseHold()
   {method}+executeHold()
+  {method}+renewHold()
   {method}#isApprovedToHold()
   {method}#retrieveHoldData()
   {method}#balanceOnHold()

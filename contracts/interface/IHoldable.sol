@@ -31,6 +31,20 @@ interface IHoldable {
     event HoldRenewed(address issuer, string indexed transactionId, uint256 oldExpiration, uint256 newExpiration); // By issuer
 
     /**
+     * @notice This function allows wallet owners to approve other addresses to perform holds on their behalf
+     * @dev It is similar to the "approve" method in ERC20, but in this case no allowance is given and this is treated
+     * as a "yes or no" flag
+     * @param holder The address to be approved as potential issuer of holds
+     */
+    function approveToHold(address holder) external returns (bool);
+
+    /**
+     * @notice This function allows wallet owners to revoke holding privileges from previously approved addresses
+     * @param holder The address to be revoked as potential issuer of holds
+     */
+    function revokeApprovalToHold(address holder) external returns (bool);
+
+    /**
      * @notice Function to perform a hold on behalf of a wallet owner (the sender) in favor of another wallet owner (the
      * "payee"), and specifying a notary who will be responsable to either execute or release the transfer
      * @param transactionId An unique ID to identify the hold. Internally IDs will be stored together with the addresses
@@ -85,20 +99,6 @@ interface IHoldable {
         returns (uint256 index);
 
     /**
-     * @notice This function allows wallet owners to approve other addresses to perform holds on their behalf
-     * @dev It is similar to the "approve" method in ERC20, but in this case no allowance is given and this is treated
-     * as a "yes or no" flag
-     * @param holder The address to be approved as potential issuer of holds
-     */
-    function approveToHold(address holder) external returns (bool);
-
-    /**
-     * @notice This function allows wallet owners to revoke holding privileges from previously approved addresses
-     * @param holder The address to be revoked as potential issuer of holds
-     */
-    function revokeApprovalToHold(address holder) external returns (bool);
-
-    /**
      * @notice Function to release a hold (if at all possible)
      * @param issuer The address of the original sender of the hold
      * @param transactionId The ID of the hold in question
@@ -116,6 +116,14 @@ interface IHoldable {
      * @dev Holds that are expired can still be executed by the notary or the operator (as well as released by anyone)
      */
     function executeHold(address issuer, string calldata transactionId) external returns (bool);
+
+    /**
+     * @notice Function to renew a hold (added time from now)
+     * @param transactionId The ID of the hold in question
+     * @dev Only the issuer can renew a hold
+     * @dev Non closed holds can be renewed, including holds that are already expired
+     */
+    function renewHold(string calldata transactionId, uint256 timeToExpirationFromNow) external returns (bool);
 
     /**
      * @notice Returns whether an address is approved to submit holds on behalf of other wallets

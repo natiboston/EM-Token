@@ -189,7 +189,17 @@ contract Holdable is IHoldable, Compliant {
         emit HoldExecuted(issuer, transactionId, finalStatus);
         return _finalizeHold(issuer, transactionId, uint256(finalStatus));
     }
-    
+     /**
+     * @notice Function to renew a hold (added time from now)
+     * @param transactionId The ID of the hold in question
+     * @dev Only the issuer can renew a hold
+     * @dev Non closed holds can be renewed, including holds that are already expired
+     */
+    function renewHold(string calldata transactionId, uint256 timeToExpirationFromNow) external holdActive(msg.sender, transactionId) returns (bool) {
+        _changeTimeToHold(msg.sender, transactionId, timeToExpirationFromNow);
+    }
+
+
     // External view functions
 
     /**

@@ -162,6 +162,10 @@ contract HoldsLedger is EternalStorageWrapper {
         return (_getHoldIssuer(index), _getTransactionId(index));
     }
 
+    function _changeTimeToHold(address issuer, string memory transactionId, uint256 timeToExpirationFromNow) internal returns (bool) {
+        return _setHoldExpiration(_getHoldIndex(issuer, transactionId), block.timestamp.add(timeToExpirationFromNow));
+    }
+
     // Private functions
 
     function _getManyHolds() private view returns (uint256 many) {
@@ -202,6 +206,10 @@ contract HoldsLedger is EternalStorageWrapper {
 
     function _getHoldExpiration(uint256 index) private view holdIndexExists(index) returns (uint256) {
         return getUintFromArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_EXPIRATIONS, index);
+    }
+
+    function _setHoldExpiration(uint256 index, uint256 expiration) private holdIndexExists(index) returns (bool) {
+        return setUintInArray(HOLDSLEDGER_CONTRACT_NAME, _HOLD_EXPIRATIONS, index, expiration);
     }
 
     function _getHoldStatus(uint256 index) private view holdIndexExists(index) returns (uint256) {

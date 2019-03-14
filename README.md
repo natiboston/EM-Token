@@ -39,7 +39,7 @@ The EM Token standard specifies a set of data types, methods and events that ens
 
 ![EM Token standard structure](./diagrams/standard_structure.png?raw=true "EM Token standard structure")
 
-#### _Basic token information_
+### _Basic token information_
 
 EM Tokens implement some basic informational methods, only used for reference:
 ```
@@ -55,7 +55,7 @@ The ```Created``` event is sent upon contract instantiation:
 event Created(string name, string symbol, string currency, uint8 decimals, string version);
 ```
 
-#### _ERC20 standard_
+### _ERC20 standard_
 
 EM Tokens implement the basic ERC20 methods:
 ```
@@ -66,19 +66,312 @@ function decreaseApproval(address spender, uint256 value) external returns (bool
 function transferFrom(address from, address to, uint256 value) external returns (bool);
 function balanceOf(address owner) external view returns (uint256);
 function allowance(address owner, address spender) external view returns (uint256);
- ```
-
- And also the basic events:
- ```
- event Transfer(address indexed from, address indexed to, uint256 value);
- event Approval(address indexed owner, address indexed spender, uint256 value);
- ```
-
-#### _Holds_
-
-EM Tokens implement the basic ERC20 methods:
 ```
+
+And also the basic events:
 ```
+event Transfer(address indexed from, address indexed to, uint256 value);
+event Approval(address indexed owner, address indexed spender, uint256 value);
+ ```
+
+Note that in this case the ```balanceOf()``` method will only return the token balance amount without taking into account balances on hold or overdraft limits. Therefore a ```transfer``` may not necessarily succeed even if the balance as returned by ```balanceOf()``` is higher than the amount to be transferred, nor may it fail if the balance is low. Further down we will document some methods that retrieve the amount of _available_  funds, as well as the _net_ balance taking into account drawn overdraft lines
+
+### _Holds_
+
+EM Tokens provide the possibility to perform holds on tokens. A hold is created with the following fields:
+* **issuer**: the address that issues the hold, be it the wallet owner or an approved holder
+* **transactionId**: an unique transaction ID provided by the holder to identify the hold throughout its life cycle
+* **payer**: the wallet from which the tokens will be transferred in case the hold is executed
+* **payee**: the wallet that will receive the tokens in case the hold is executed
+* **notary**: the address that will either execute or release the hold (after checking whatever condition)
+* **amount**: the amount of tokens that will be transferred
+* **expires**: a flag indicating whether the hold will have an expiration time or not
+* **expiration**: the timestamp since which the hold is considered to be expired (in case ```expires==true```)
+* **status**: the status of the hold, which can be one of the following as defined in the ```HoldStatusCode``` enum type (also part of the standard)
+
+```
+enum HoldStatusCode { Nonexistent, Created, ExecutedByNotary, ExecutedByOperator, ReleasedByNotary, ReleasedByOperator, ReleasedDueToExpiration }
+```
+
+Holds are to be created directly by wallet owners. Wallet owners can also approve others to perform holds on their behalf:
+
+```
+function approveToHold(address holder) external returns (bool);
+function revokeApprovalToHold(address holder) external returns (bool);
+```
+
+Note that approvals are yes or no, without allowances (as in ERC20's approve method)
+
+The key methods are ```hold``` and ```holdFrom```, which create holds on behalf of payers:
+
+```
+function hold(string calldata transactionId, address payee, address notary, uint256 amount, bool expires, uint256 timeToExpiration) external returns (uint256 index);
+function holdFrom(string calldata transactionId, address payer, address payee, address notary, uint256 amount, bool expires, uint256 timeToExpiration) external returns (uint256 index);
+```
+
+Unique transactionIDs are to be provided by the issuer of the hold. Internally, keys are to be built by hashing the address of the issuer and the transactionId, which therefore supports the possibility of different issuers of holds using the same transactionId.
+
+Once the hold has been created, only the notary can either release or execute the hold within the expiration period, and the issuer can also extend the expiration time of the hold:
+
+```
+function releaseHold(address issuer, string calldata transactionId) external returns (bool);
+function executeHold(address issuer, string calldata transactionId) external returns (bool);
+function renewHold(string calldata transactionId, uint256 timeToExpirationFromNow) external returns (bool);
+```
+
+If the hold can expire (```expires==true```), then anyone can release the hold after the expiration time. The notary can still execute the hold after expiration as well. Also, the operator or the owner of the token contract can also execute or release the hold
+
+Also, some ```view``` methods are provided to retrieve information about holds:
+
+```
+function isApprovedToHold(address wallet, address holder) external view returns (bool);
+function retrieveHoldData(address issuer, string calldata transactionId) external view returns (uint256 index, address payer, address payee, address notary, uint256 amount, bool expires, uint256 expiration, HoldStatusCode status);
+function balanceOnHold(address account) external view returns (uint256);
+function totalSupplyOnHold() external view returns (uint256);
+```
+
+```balanceOnHold``` and ```totalSupplyOnHold``` return the addition of all the amounts of hold for an address or for all addresses, respectively
+
+A number of events are to be sent as well:
+
+```
+event HoldCreated(address issuer, string indexed transactionId, address indexed payer, address payee, address indexed notary, uint256 amount, bool expires, uint256 expiration, uint256 index );
+event HoldExecuted(address issuer, string indexed transactionId, HoldStatusCode status);
+event HoldReleased(address issuer, string indexed transactionId, HoldStatusCode status);
+event HoldRenewed(address issuer, string indexed transactionId, uint256 oldExpiration, uint256 newExpiration);
+```
+
+### _Overdrafts_
+
+The EM Token implements the possibility of token balances to be negative through the implementation of unsecured overdraft lines subject to limits to be set by a CRO:
+
+```
+function increaseUnsecuredOverdraftLimit(address account, uint256 amount) external returns (bool);
+function decreaseUnsecuredOverdraftLimit(address account, uint256 amount) external returns (bool);
+```
+
+Changes in overdraft limits results in sending events:
+
+```
+event UnsecuredOverdraftLimitSet(address indexed account, uint256 oldLimit, uint256 newLimit);
+```
+
+View methods allow to know the limits and the drawn amounts from the credit line:
+
+```
+function unsecuredOverdraftLimit(address account) external view returns (uint256);
+function drawnAmount(address account) external view returns (uint256);
+```
+
+TO DO: add interest payments and out-of-limit penalties
+
+### _Cleared transfers_
+
+EM Token contracts provide the possibility of ordering and managing transfers that are not atomically executed, but rather need to be cleared by the token issuing authority before being executed (or rejected). Cleared transfers then have a status which changes along the process, of type ```ClearedTransferRequestStatusCode```:
+
+```
+enum ClearedTransferRequestStatusCode { Nonexistent, Requested, InProcess, Executed, Rejected, Cancelled }
+```
+
+Cleared transfers can be ordered by wallet owners or by approved parties (again, no allowances are implemented):
+```
+function approveToRequestClearedTransfer(address requester) external returns (bool);
+function revokeApprovalToRequestClearedTransfer(address requester) external returns (bool);
+```
+
+Cleared transfers are then submitted in a similar fashion to normal (ERC20) transfers, but using an unique identifier similar to the case of transactionIds in holds (again, internally the keys are built from the address of the requester and the transactionId). Upon submission of the cleared transfer request, a hold is performed on the ```fromWallet``` to secure the funds that will be transferred:
+
+```
+function orderClearedTransfer(string calldata transactionId, address toWallet, uint256 amount) external returns (uint256 index);
+function orderClearedTransferFrom(string calldata transactionId, address fromWallet, address toWallet, uint256 amount) external returns (uint256 index);
+```
+
+Right after the transfer has been ordered (status is ```Requested```), the issuer can still cancel the transfer:
+
+```
+function cancelClearedTransferRequest(string calldata transactionId) external returns (bool);
+```
+
+The token contract owner / operator has then methods to manage the workflow process:
+
+* The ```processClearedTransferRequest``` moves the status to ```InProcess```, which then forbids the issuer to be able to cancel the transfer request. This also can be used by the operator to freeze everything, e.g. in the case of a positive in AML screening
+
+```
+function processClearedTransferRequest(address requester, string calldata transactionId) external returns (bool);
+```
+
+* The ```executeClearedTransferRequest``` method allows the operator to approve the execution of the transfer, which effectively triggers the execution of the hold, which then moves the token from the ```fromWallet``` to the ```toWallet```:
+
+```
+function executeClearedTransferRequest(address requester, string calldata transactionId) external returns (bool);
+```
+
+* The operator can also reject the transfer request by calling the ```rejectClearedTransferRequest```. In this case a reason can be provided:
+
+```
+function rejectClearedTransferRequest(address requester, string calldata transactionId, string calldata reason) external returns (bool);
+```
+
+Some ```view``` methods are also provided :
+
+```
+function isApprovedToRequestClearedTransfer(address toWalletDebit, address requester) external view returns (bool);
+function retrieveClearedTransferData(address requester, string calldata transactionId) external view returns (uint256 index, address fromWallet, address toWallet, uint256 amount, ClearedTransferRequestStatusCode status );
+```
+
+A number of events are also casted on eventful transactions:
+
+```
+event ClearedTransferRequested( address indexed requester, string indexed transactionId, address indexed fromWallet, address toWallet, uint256 amount, uint256 index );
+event ClearedTransferRequestInProcess(address requester, string indexed transactionId);
+event ClearedTransferRequestExecuted(address requester, string indexed transactionId);
+event ClearedTransferRequestRejected(address requester, string indexed transactionId, string reason);
+event ClearedTransferRequestCancelled(address requester, string indexed transactionId);
+event ApprovalToRequestClearedTransfer(address indexed toWalletDebit, address indexed requester);
+event RevokeApprovalToRequestClearedTransfer(address indexed toWalletDebit, address indexed requester);
+```
+
+### _Funding_
+
+Token wallet owners (or approved addresses) can issue tokenization requests through the blockchain. This is done by calling the ```requestfunding``` or ```requestFundingFrom``` methods, which initiate the workflow for the token contract operator to either honor or reject the request. In this case, funding instructions are provided when submitting the request, which are used by the operator to determine the source of the funds to be debited in order to do fund the token wallet (through minting). In general, it is not advisable to place explicit routing instructions for debiting funds on a verbatim basis on the blockchain, and it is advised to use a private channel to do so (external to the blockchain ledger). Another (less desirable) possibility is to place these instructions on the instructions field on encrypted form.
+
+A similar phillosophy to Cleared Transfers is applied to the case of funding requests, i.e.:
+
+* A unique transactionId must be provided by the requester
+* A similar workflow is provided with similar status codes
+* The operator can execute and reject the funding request
+
+Status codes are self-explanatory:
+
+```
+enum FundingRequestStatusCode { Nonexistent, Requested, InProcess, Executed, Rejected, Cancelled }
+```
+
+Transactional methods are provided to manage the whole cycle of the funding request:
+
+```
+function approveToRequestFunding(address requester) external returns (bool);
+function revokeApprovalToRequestFunding(address requester) external returns (bool) ;
+function requestFunding(string calldata transactionId, uint256 amount, string calldata instructions) external returns (uint256 index);
+function requestFundingFrom(string calldata transactionId, address walletToFund, uint256 amount, string calldata instructions) external returns (uint256 index);
+function cancelFundingRequest(string calldata transactionId) external returns (bool);
+function processFundingRequest(address requester, string calldata transactionId) external returns (bool);
+function executeFundingRequest(address requester, string calldata transactionId) external returns (bool);
+function rejectFundingRequest(address requester, string calldata transactionId, string calldata reason) external returns (bool);
+```
+
+View methods are also provided:
+
+```
+function isApprovedToRequestFunding(address walletToFund, address requester) external view returns (bool);
+function retrieveFundingData(address requester, string calldata transactionId) external view returns (uint256 index, address walletToFund, uint256 amount, string memory instructions, FundingRequestStatusCode status);
+```
+
+Events are to be sent on relevant transactions:
+
+```
+event FundingRequested(address indexed requester, string indexed transactionId, address indexed walletToFund, uint256 amount, string instructions, uint256 index);
+event FundingRequestInProcess(address requester, string indexed transactionId);
+event FundingRequestExecuted(address requester, string indexed transactionId);
+event FundingRequestRejected(address requester, string indexed transactionId, string reason);
+event FundingRequestCancelled(address requester, string indexed transactionId);
+event ApprovalToRequestFunding(address indexed walletToFund, address indexed requester);
+event RevokeApprovalToRequestFunding(address indexed walletToFund, address indexed requester);
+```
+
+### _Payouts_
+
+Similary to funding requests, token wallet owners (or approved addresses) can issue payout requests through the blockchain. This is done by calling the ```requestPayout``` or ```requestPayoutFrom``` methods, which initiate the workflow for the token contract operator to either honor or reject the request.
+
+In this case, the following movement of tokens are done as the process progresses:
+
+* Upon launch of the payout request, the appropriate amount of funds are placed on a hold with no notary (i.e. it is an internal hold that cannot be released)
+* The operator then puts the payout request ```InProcess```, which executes the hold and moves the funds to a suspense wallet
+* The operator then moves the funds offchain from the omnibus account to the appropriate destination account, then burning the tokens from the suspense wallet
+* Either before or after placing the request ```InProcess```, the operator can also reject the payout, which returns the funds to the payer and eliminates the hold
+
+Also in this case, payout instructions are provided when submitting the request, which are used by the operator to determine the desination of the funds to be transferred from the omnibus account. In general, it is not advisable to place explicit routing instructions for debiting funds on a verbatim basis on the blockchain, and it is advised to use a private channel to do so (external to the blockchain ledger). Another (less desirable) possibility is to place these instructions on the instructions field on encrypted form.
+
+Status codes are self-explanatory:
+
+```
+enum PayoutRequestStatusCode { Nonexistent, Requested, InProcess, Executed, Rejected, Cancelled }
+```
+
+Transactional methods are provided to manage the whole cycle of the payout request:
+
+```
+function approveToRequestPayout(address requester) external returns (bool);
+function revokeApprovalToRequestPayout(address requester) external returns (bool);
+function requestPayout(string calldata transactionId, uint256 amount, string calldata instructions) external returns (uint256 index);
+function requestPayoutFrom(string calldata transactionId, address walletToDebit, uint256 amount, string calldata instructions) external returns (uint256 index);
+function cancelPayoutRequest(string calldata transactionId) external returns (bool);
+function processPayoutRequest(address requester, string calldata transactionId) external returns (bool);
+function executePayoutRequest(address requester, string calldata transactionId) external returns (bool);
+function rejectPayoutRequest(address requester, string calldata transactionId, string calldata reason) external returns (bool);
+```
+
+View methods are also provided:
+
+```
+function isApprovedToRequestPayout(address walletToDebit, address requester) external view returns (bool);
+function retrievePayoutData(address requester, string calldata transactionId) external view returns (uint256 index, address walletToDebit, uint256 amount, string memory instructions, PayoutRequestStatusCode status);
+```
+
+Events are to be sent on relevant transactions:
+
+```
+event PayoutRequested(address indexed requester, string indexed transactionId, address indexed walletToDebit, uint256 amount, string instructions, uint256 index);
+event PayoutRequestInProcess(address requester, string indexed transactionId);
+event PayoutRequestExecuted(address requester, string indexed transactionId);
+event PayoutRequestRejected(address requester, string indexed transactionId, string reason);
+event PayoutRequestCancelled(address requester, string indexed transactionId);
+event ApprovalToRequestPayout(address indexed walletToDebit, address indexed requester);
+event RevokeApprovalToRequestPayout(address indexed walletToDebit, address indexed requester);
+```
+
+### _Compliance_
+
+In EM Token, all user-initiated methods should be checked from a compliance point of view. To do this, a set of functions is provided that return a flag indicating whether a transaction can be done, and a reason in case the answer is no (if possible). These functions are ```view``` and can be called by the user, however the real transactional methods should ```require```these functions to return ```true``` to avoid non-authorized transactions to go through
+
+```
+function checkTransfer(address from, address to, uint256 value) external view returns (bool canDo, string memory reason);
+function checkApprove(address allower, address spender, uint256 value) external view returns (bool canDo, string memory reason);
+
+function checkHold(address payer, address payee, address notary, uint256 value) external view returns (bool canDo, string memory reason);
+function checkApproveToHold(address payer, address holder) external view returns (bool canDo, string memory reason);
+
+function checkApproveToOrderClearedTransfer(address fromWallet, address requester) external view returns (bool canDo, string memory reason);
+function checkOrderClearedTransfer(address fromWallet, address toWallet, uint256 value) external view returns (bool canDo, string memory reason);
+
+function checkApproveToRequestFunding(address walletToFund, address requester) external view returns (bool canDo, string memory reason);
+function checkRequestFunding(address walletToFund, address requester, uint256 value) external view returns (bool canDo, string memory reason);
+    
+function checkApproveToRequestPayout(address walletToDebit, address requester) external view returns (bool canDo, string memory reason);
+function checkRequestPayout(address walletToDebit, address requester, uint256 value) external view returns (bool canDo, string memory reason);
+```
+
+### _Consolidated ledger_
+
+The EM Token ledger is composed on the interaction of three main entries that determine the amount of available funds for transactions:
+
+* **Token balances**, like the ones one would receive when calling the ```balanceOf``` method
+* **Drawn overdrafts**, which are effectively negative balances
+* **Balance on hold**, resulting from the active holds in each moment
+
+The combination of these three determine the availability of funds in each mmoment. Two methods are given to know these amounts:
+
+```
+function availableFunds(address wallet) external view returns (uint256);
+function netBalanceOf(address wallet) external view returns (int256);
+function totalDrawnAmount() external view returns (uint256);
+```
+
+```availableFunds()``` is calculated as ```balanceOf()``` plus ```unsecuredOverdraftLimit()``` minus ```drawnAmount()``` minus ```balanceOnHold()```
+
+```netBalanceOf()``` is calculated as ```balanceOf()``` minus ```drawnAmount()```, although it should be guaranteed that at least one of these two is zero at all times (i.e. one cannot have a positive token balance and a drawn overdraft at the same time)
+
+```totalDrawnAmount()``` returns the total amount drawn from all overdraft lines in all wallets (analogous to the totalSupply() method)
 
 ## Implementation
 

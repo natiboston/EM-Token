@@ -62,4 +62,12 @@ contract Overdraftable is IOverdraftable, Compliant {
         return _drawnAmount(account);
     }
 
+    /**
+     * @notice totalDrawnAmount returns the addition of all the amounts drawn from overdraft lines in all wallets
+     * @return The total amount drawn from all overdraft lines
+     */
+    function totalDrawnAmount() external view returns (uint256) {
+        return _totalDrawnAmount();
+    }
+
 }
