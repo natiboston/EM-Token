@@ -53,6 +53,8 @@ class IHoldable {
   {field}event HoldReleased
   {field}event HoldRenewed
   ==
+  {method}+approveToHold()
+  {method}+revokeApprovalToHold()
   {method}+hold()
   {method}+holdFrom()
   {method}+releaseHold()

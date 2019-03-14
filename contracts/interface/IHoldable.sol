@@ -85,6 +85,20 @@ interface IHoldable {
         returns (uint256 index);
 
     /**
+     * @notice This function allows wallet owners to approve other addresses to perform holds on their behalf
+     * @dev It is similar to the "approve" method in ERC20, but in this case no allowance is given and this is treated
+     * as a "yes or no" flag
+     * @param holder The address to be approved as potential issuer of holds
+     */
+    function approveToHold(address holder) external returns (bool);
+
+    /**
+     * @notice This function allows wallet owners to revoke holding privileges from previously approved addresses
+     * @param holder The address to be revoked as potential issuer of holds
+     */
+    function revokeApprovalToHold(address holder) external returns (bool);
+
+    /**
      * @notice Function to release a hold (if at all possible)
      * @param issuer The address of the original sender of the hold
      * @param transactionId The ID of the hold in question
