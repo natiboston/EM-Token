@@ -117,7 +117,7 @@ function executeHold(address issuer, string calldata transactionId) external ret
 function renewHold(string calldata transactionId, uint256 timeToExpirationFromNow) external returns (bool);
 ```
 
-If the hold can expire (```expires==true```), then anyone can release the hold after the expiration time. The notary can still execute the hold after expiration as well. Also, the operator or the owner of the token contract can also execute or release the hold
+If the hold can expire (```expires==true```), then the payer, the payee, the notary or the operator will be able to release the hold after the expiration time. Expired holds cannot be executed or renewed. Also, the operator / owner of the token contract can also execute or release the hold
 
 Also, some ```view``` methods are provided to retrieve information about holds:
 
