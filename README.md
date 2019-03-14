@@ -35,6 +35,8 @@ The EM Token is thus different from other tokens commonly referred to as "stable
 
 ## Data types, methods and events (minimal standard implementation)
 
+TO DO: consider adding roles to the standard
+
 The EM Token standard specifies a set of data types, methods and events that ensure interoperability between different implementations. All these elements are included and described in the interface/I*.sol files. The following picture schamtically describes the hierarchy of these interface files:
 
 ![EM Token standard structure](./diagrams/standard_structure.png?raw=true "EM Token standard structure")
@@ -90,6 +92,7 @@ EM Tokens provide the possibility to perform holds on tokens. A hold is created 
 * **status**: the status of the hold, which can be one of the following as defined in the ```HoldStatusCode``` enum type (also part of the standard)
 
 TO DO: propose a new name for ```transactionId```, so it is not confused with Ethereum transactions
+
 TO DO: change ```payer``` and ```payee``` for ```from``` and ```to```
 
 ```
