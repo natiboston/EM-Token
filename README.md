@@ -395,3 +395,4 @@ These implementation details are not part of the standard, although they can be 
 * Ledger management utilities (i.e. direct methods to mint, burn, modify status of requests etc. by the operator
 * Iteration utilities in some mappings (e.g. list of approved holders for a wallet)
 * R-Token registry for compliance checks
+* A ```requestWallet``` method to rquest whitelisting (so whitelisting can be honored on the basis of a request)
