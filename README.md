@@ -373,43 +373,25 @@ function totalDrawnAmount() external view returns (uint256);
 
 ```totalDrawnAmount()``` returns the total amount drawn from all overdraft lines in all wallets (analogous to the totalSupply() method)
 
-## Implementation
-
-Blah
 
 ## Implementation ##
 
+A reference implementation is provided, as per the following diagram:
+
 ![EM Token example implementation](./diagrams/implmentation_structure.png?raw=true "EM Token example implementation")
+
+Some highlights:
+
+* Basic "ledger" contracts providing internal methods are used as the base (then consolidated in the ```ConsolidatedLedger``` contract), so then the top contracts can use these to do accounting with a holistic view (e.g. ```transfer``` taking into account balances on hold and overdraft limits)
+* The ```Compliant``` contract only implements very bsaic compliance checks for all methods, namely whether the involved parties in the transaction are whitelisted (as per the ```Whitelistable``` contract). Other, more elaborated versions of this are based on the R-Token contract, which provides compliance check functions on a "regulator service" implemented on a external contract that is accessed through a registry
+* A ```RoleControl``` contract is used to provide basic role management beyond ```Ownable```, i.e. to control roles for ledger operators, CROs, compliance officers, etc. And also to provide several addresses with the same role
+* An eternal storage construct is used to facilitate migrations. Essentially, all the storage variables throughout the contracts are implemented as pointers to the actual storage, which is implemented in a separate ```EternalStorage``` contract. This way, new versions of the main contract can be deployed and directed to the same eternal storage (or even several contracts can be used at the same time over the same eternal storage)
+
+These implementation details are not part of the standard, although they can be considered best practices
 
 ## Future work
 
-Blah
-
-
-
-================
-
-Considerations:
-
-* **EMToken**: This is just a top level wrapper with some informational constants (Symbol, currency, decimals, etc.)
-* **Fundable, Redeemable, Clearable**: These add workflows to manage requests from clients, either to i) fund wallets, ii) pay out from wallets, or iii) make transfers that need to be cleared. In all cases the flow implies a two step process with intervention of an authorized operator on behalf of the tokenization entity, i.e.: i) the client requests a {funding, redemption, transfer that needs to be cleared}, and ii) the operator either honors or rejects such request. The wallet owner should also be able to cancel the request. 
-
-=> need to provide consistency between all three, i.e. with names, types of parameters, etc.
-=> not sure the request ID should be set by the user when placing the request, given that different actors may ask for redemptions simultaneously and competitively and that could result in inconsistencies. An implementation with an array and an index seems a better option (with the possibility to store a user-specific reference for convenience)
-
-* **Holdable, Overdraftable**: These add holding and overdrafting capabilities. They are cumulative and each one should re-implement the user-initiated methods from the previous one - e.g. Overdraftable should re-implement "transfer" since the transfer should work if an overdraft limit is available; and Holdable should re-implement it as well since balances on hold should not be available for transfers
-
-=> Same comment for holds: the hold ID should be set by the system, as it is a competitive resource. Again, it can contain a custom reference provided by the holder if needed
-
-* **ManagedERC20**: This is the main ERC20 implementation, but adds the possibility for the operator to manually annotate the ledger
-
-* **ERC20Ledger**: This is the base ERC20 ledger with balances and allowances (as private variables). This contract also adds the reference to the ServiceRegistry and the RegulatorService so it can be referenced from the rest of the hierarchy (because the basic ledger operations such as mints, burns and transfers happen here, although other operations happen at upper levels - e.g. changes to drawn credit lines)
-
-* **EternalStorageWrapper**: This is a wrapper to use the eternal storage, so it can be consistently referenced from all the contracts (i.e. pointing to the same EternalStorage)
-
-* **EternalStorage**: This is the generic, raw eternal data repository where all the storage data will be kept. No storage variables should be used in any contract, other than permissioning data etc. (i.e. owner-style addresses). All client-related data (balances, allowances, requests, etc.) should always be kept in this instance, so all the logic in the rest of the contracts can be safely migrated
-
-* **ServiceRegistry** and **RegulatorService**: This is consistent with the RegulatedToken construct. The RegulatorService contract should have check methods for all user-initiated functions from all the contracts, i.e. transfers, approves, holds, funding/redemption requests, etc. Also, it should have "recording" functions to call evertime something happens in the ledger, i.e. a token is mint in a wallet or a transfer is made. All these functions will be referenced through the registry construct from all the contracts
-
-=> "Owner"-type permissions will not be managed in the RegulatorService, and will be added instead in each contract. For instance the Chief Risk Officer permissioning will be added in the Overdraftable contract, instead of being referenced in the RegulatorService. The RegulatorService is intended to be used only to clear client-initiated functions
-=> All client-initiated functions should have alternative versions to delegate the calls - e.g. "requestFunding" should have a "requestFundingFor" equivalent, and an "approveFundingRequester" function as well. Allowances should then be provided as well, rather than simple permissioning - except in the case of holds, which should be the normal way to move money from third parties. In this case, the requesters of holds should simply be waitlisted, and not subject to amount-specific approvals. As a matter of fact, it may be beneficial to restrict holders to be contracts always, and not individual users - so the contracts can be authorized once their logic is audited by the wallet owner
+* Interest in overdraft lines
+* Ledger management utilities (i.e. direct methods to mint, burn, modify status of requests etc. by the operator
+* Iteration utilities in some mappings (e.g. list of approved holders for a wallet)
+* R-Token registry for compliance checks
