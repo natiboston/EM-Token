@@ -13,16 +13,6 @@ skinparam {
   NoteBackgroundColor #DDDDDD
 }
 
-'class XXX{
-    '{field}event FundingRequested
-    '==
-    '{method}\t// User callable functions:
-    '{method}+requestFunding(uint256 amount, string instructions)
-    '--
-    '{method}\t// Owner functions (onlyOwner, to respond to user requests):
-    '{method}#executeFundingRequest(uint256 fundingId)
-'}
-
 class IEMoneyToken {
   {field}event Created
   ==
