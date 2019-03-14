@@ -90,6 +90,7 @@ EM Tokens provide the possibility to perform holds on tokens. A hold is created 
 * **status**: the status of the hold, which can be one of the following as defined in the ```HoldStatusCode``` enum type (also part of the standard)
 
 TO DO: propose a new name for ```transactionId```, so it is not confused with Ethereum transactions
+TO DO: change ```payer``` and ```payee``` for ```from``` and ```to```
 
 ```
 enum HoldStatusCode { Nonexistent, Created, ExecutedByNotary, ExecutedByOperator, ReleasedByNotary, ReleasedByOperator, ReleasedDueToExpiration }
