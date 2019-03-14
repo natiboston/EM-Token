@@ -35,8 +35,6 @@ The EM Token is thus different from other tokens commonly referred to as "stable
 
 ## Data types, methods and events (minimal standard implementation)
 
-TO DO: consider adding roles to the standard
-
 The EM Token standard specifies a set of data types, methods and events that ensure interoperability between different implementations. All these elements are included and described in the interface/I*.sol files. The following picture schamtically describes the hierarchy of these interface files:
 
 ![EM Token standard structure](./diagrams/standard_structure.png?raw=true "EM Token standard structure")
@@ -76,8 +74,6 @@ event Approval(address indexed owner, address indexed spender, uint256 value);
 
 Note that in this case the ```balanceOf()``` method will only return the token balance amount without taking into account balances on hold or overdraft limits. Therefore a ```transfer``` may not necessarily succeed even if the balance as returned by ```balanceOf()``` is higher than the amount to be transferred, nor may it fail if the balance is low. Further down we will document some methods that retrieve the amount of _available_  funds, as well as the _net_ balance taking into account drawn overdraft lines
 
-TO DO: Check out ERC777 and extend this to comply with it, if appropriate
-
 ### _Holds_
 
 EM Tokens provide the possibility to perform holds on tokens. A hold is created with the following fields:
@@ -90,10 +86,6 @@ EM Tokens provide the possibility to perform holds on tokens. A hold is created 
 * **expires**: a flag indicating whether the hold will have an expiration time or not
 * **expiration**: the timestamp since which the hold is considered to be expired (in case ```expires==true```)
 * **status**: the status of the hold, which can be one of the following as defined in the ```HoldStatusCode``` enum type (also part of the standard)
-
-TO DO: propose a new name for ```transactionId```, so it is not confused with Ethereum transactions
-
-TO DO: change ```payer``` and ```payee``` for ```from``` and ```to```
 
 ```
 enum HoldStatusCode { Nonexistent, Created, ExecutedByNotary, ExecutedByOperator, ReleasedByNotary, ReleasedByOperator, ReleasedDueToExpiration }
@@ -168,8 +160,6 @@ View methods allow to know the limits and the drawn amounts from the credit line
 function unsecuredOverdraftLimit(address account) external view returns (uint256);
 function drawnAmount(address account) external view returns (uint256);
 ```
-
-TO DO: add interest payments and out-of-limit penalties
 
 ### _Cleared transfers_
 
@@ -402,3 +392,12 @@ These implementation details are not part of the standard, although they can be 
 * Iteration utilities in some mappings (e.g. list of approved holders for a wallet)
 * R-Token registry for compliance checks
 * A ```requestWallet``` method to rquest whitelisting (so whitelisting can be honored on the basis of a request)
+
+## To Do's:
+
+* TO DO: propose a new name for ```transactionId```, so it is not confused with Ethereum transactions
+* TO DO: change ```payer``` and ```payee``` for ```from``` and ```to```
+* TO DO: consider adding roles to the standard
+* TO DO: Check out ERC777 and extend this to comply with it, if appropriate
+* TO DO: add interest payments and out-of-limit penalties
+* TO DO: add a ```ReleasedByTarget``` status for holds, plus the possibility for payees of holds to release holds (as a way to reject the subsequent transfert)
