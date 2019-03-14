@@ -39,7 +39,7 @@ The EM Token standard specifies a set of data types, methods and events that ens
 
 ![EM Token standard structure](./diagrams/standard_structure.png?raw=true "EM Token standard structure")
 
-### _Basic token information_
+#### _Basic token information_
 
 EM Tokens implement some basic informational methods, only used for reference:
 ```
@@ -55,7 +55,7 @@ The ```Created``` event is sent upon contract instantiation:
 event Created(string name, string symbol, string currency, uint8 decimals, string version);
 ```
 
-### _ERC20 standard_
+#### _ERC20 standard_
 
 EM Tokens implement the basic ERC20 methods:
 ```
@@ -74,7 +74,7 @@ function allowance(address owner, address spender) external view returns (uint25
  event Approval(address indexed owner, address indexed spender, uint256 value);
  ```
 
-### _Holds_
+#### _Holds_
 
 EM Tokens implement the basic ERC20 methods:
 ```
