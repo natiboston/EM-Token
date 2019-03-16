@@ -6,6 +6,15 @@ Contributors: xxx
 
 The EM Token standard aims to enable the issuance of regulated electronic money on blockchain networks, and its practical usage in real financial applications.
 
+* [Background](https://github.com/juliofaura/EM-Token/blob/master/README.md#background)
+* [Overview](https://github.com/juliofaura/EM-Token/README.md#overview)
+* [Methods and Events](https://github.com/juliofaura/EM-Token/blob/master/README.md#data-types-methods-and-events-minimal-standard-implementation)
+* [Implementaion](https://github.com/juliofaura/EM-Token/blob/master/README.md#implementation)
+* [Future work](https://github.com/juliofaura/EM-Token/blob/master/README.md#future-work)
+* [To Do's](https://github.com/juliofaura/EM-Token/blob/master/README.md#to-dos)
+
+
+
 ## Background
 
 Financial institutions work today with electronic systems which hold account balances in databases on core banking systems. In order for an institution to be allowed to maintain records of client balances segregated and available for clients, such institution must be regulated under a known legal framework and must possess a license to do so. Maintaining a license under regulatory supervision entails ensuring compliance (i.e. performing KYC on all clients and ensuring good AML practices before allowing transactions) and demonstrating technical and operational solvency through periodic audits, so clients depositing funds with the institution can rest assured that their money is safe.
@@ -25,8 +34,8 @@ Beyond cash, financial instruments such as equities or bonds are also registered
 
 The EM Token builds on Ethereum standards currently in use such as ERC20, but it extends them to provide few key additional pieces of functionality, needed in the regulated financial world:
 * **Compliance**: EM Tokens implement a set of methods to check in advance whether user-initiated transactions can be done from a compliance point of view. Implementations must require that these methods return "true" before executing the transaction
-* **Clearing**: In addition to the standard ERC20 "transfer" method, EM Token provides a way to subnit transfers that need to be cleared by the token issuing authority offchain. These transfers are then executed in two steps: i) transfers are ordered, and ii) after clearing them, transfers are executed or rejected by the operator of the token contract
-* **Holds**: token balances can be put on hold, which will make the held amount unavailable for further use until the hold is resolved (i.e. either executed or released). Holds have a payer, a payee, and a notary who is in charge of resolving the hold. Holds also implement expiration periods, after which anyone can release the hold Holds are similar to escrows in that are firm and lead to final settlement. Holds can also be used to implement collateralization
+* **Clearing**: In addition to the standard ERC20 "transfer" method, EM Token provides a way to submit transfers that need to be cleared by the token issuing authority offchain. These transfers are then executed in two steps: i) transfers are ordered, and ii) after clearing them, transfers are executed or rejected by the operator of the token contract
+* **Holds**: token balances can be put on hold, which will make the held amount unavailable for further use until the hold is resolved (i.e. either executed or released). Holds have a payer, a payee, and a notary who is in charge of resolving the hold. Holds also implement expiration periods, after which anyone can release the hold. Holds are similar to escrows in that are firm and lead to final settlement. Holds can also be used to implement collateralization
 * **Credit lines**: an EM Token wallet can have associated a credit line, which is automatically drawn when transfers or holds are performed and there is insufficient balance in the wallet - i.e. the `transfer` method will then not throw if there is enough available credit in the wallet. Credit lines generate interest that is automatically accrued in the relevant associated token wallets
 * **Funding request**: users can ask for a wallet funding request by calling the smart contract and attaching a direct debit instruction string. The tokenizer reads this request, interprets the debit instructions, and triggers a transfer in the bank ledger to initiate the tokenization process  
 * **Redeem**: users can request redemptions by calling the smart contract and attaching a payment instruction string. The (de)tokenizer reads this request, interprets the payment instructions, and triggers the transfer of funds (typically from the omnibus account) into the destination account, if possible
@@ -38,6 +47,17 @@ The EM Token is thus different from other tokens commonly referred to as "stable
 The EM Token standard specifies a set of data types, methods and events that ensure interoperability between different implementations. All these elements are included and described in the ```interface/I*.sol``` files. The following picture schamtically describes the hierarchy of these interface files:
 
 ![EM Token standard structure](./diagrams/standard_structure.png?raw=true "EM Token standard structure")
+
+* [Basic token information](https://github.com/juliofaura/EM-Token/blob/master/README.md#basic-token-information)
+* [ERC 20](https://github.com/juliofaura/EM-Token/blob/master/README.md#erc20-standard)
+* [Holds](https://github.com/juliofaura/EM-Token/blob/master/README.md#holds)
+* [Overdrafts](https://github.com/juliofaura/EM-Token/blob/master/README.md#overdrafts)
+* [Funding](https://github.com/juliofaura/EM-Token/blob/master/README.md#funding)
+* [Payouts](https://github.com/juliofaura/EM-Token/blob/master/README.md#payouts)
+* [Compliance](https://github.com/juliofaura/EM-Token/blob/master/README.md#compliance)
+* [Compliance](https://github.com/juliofaura/EM-Token/blob/master/README.md#compliance)
+* [Consolidated Ledger](https://github.com/juliofaura/EM-Token/blob/master/README.md#consolidated-ledger)
+
 
 ### _Basic token information_
 
